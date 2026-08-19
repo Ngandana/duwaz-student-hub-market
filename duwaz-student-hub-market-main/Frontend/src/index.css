@@ -1,0 +1,111 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 10% 5%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 10% 5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 10% 5%;
+
+    --primary: 25 33% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 25 25% 83%;
+    --secondary-foreground: 20 10% 5%;
+
+    --muted: 25 25% 95%;
+    --muted-foreground: 20 5% 45%;
+
+    --accent: 25 25% 83%;
+    --accent-foreground: 20 10% 5%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 20 5% 90%;
+    --input: 20 5% 90%;
+    --ring: 25 33% 36%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 20 10% 5%;
+    --foreground: 0 0% 98%;
+
+    --card: 20 10% 5%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 20 10% 5%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 25 33% 36%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 25 25% 23%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 25 25% 23%;
+    --muted-foreground: 20 5% 65%;
+
+    --accent: 25 25% 23%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 25 25% 23%;
+    --input: 25 25% 23%;
+    --ring: 25 33% 46%;
+    
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .category-card {
+    @apply bg-white rounded-lg shadow-md transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-pointer overflow-hidden;
+  }
+  
+  .product-card {
+    @apply bg-white rounded-lg shadow-md transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-pointer overflow-hidden;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:translate-y-[-4px];
+  }
+}
