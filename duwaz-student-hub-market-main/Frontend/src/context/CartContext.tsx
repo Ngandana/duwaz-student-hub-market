@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { CartItem } from '@/types';
+import { useAuth } from './AuthContext';
 
 interface CartContextValue {
   items: CartItem[];
@@ -13,14 +14,36 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+/** Returns the localStorage key for a given user's cart */
+function cartKey(userId: number | undefined): string {
+  return userId ? `duwaz_cart_${userId}` : 'duwaz_cart_guest';
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
+
+  // ── Load cart from localStorage when user changes (login / logout / page refresh) ──
+  useEffect(() => {
+    const key = cartKey(user?.userId);
+    try {
+      const stored = localStorage.getItem(key);
+      setItems(stored ? JSON.parse(stored) : []);
+    } catch {
+      setItems([]);
+    }
+  }, [user?.userId]);
+
+  // ── Persist cart to localStorage whenever items change ────────────────────
+  useEffect(() => {
+    const key = cartKey(user?.userId);
+    localStorage.setItem(key, JSON.stringify(items));
+  }, [items, user?.userId]);
 
   const addItem = useCallback((newItem: Omit<CartItem, 'quantity'>) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === newItem.id);
       if (existing) {
-        // Already in cart — increase quantity
         return prev.map((i) =>
           i.id === newItem.id ? { ...i, quantity: i.quantity + 1 } : i
         );
@@ -41,10 +64,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => {
+    setItems([]);
+    // Also remove from localStorage immediately
+    localStorage.removeItem(cartKey(user?.userId));
+  }, [user?.userId]);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal   = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
     <CartContext.Provider

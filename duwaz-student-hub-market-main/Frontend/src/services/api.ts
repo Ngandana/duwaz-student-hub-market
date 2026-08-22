@@ -76,7 +76,7 @@ export const authApi = {
   }) => request<AuthResponse>('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 
   login: (data: { email: string; password: string }) =>
-    request<AuthResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+    request<AuthResponse & { locationAddress?: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -275,6 +275,8 @@ export const transactionsApi = {
   getByStudent: (studentId: number) =>
     request<Transaction[]>(`/api/transactions/student/${studentId}`),
   getMySummary: () => request<any>('/api/transactions/my/summary'),
+  getMyShopRevenue: () => request<any>('/api/transactions/my/shop-revenue'),
+  getAdminRevenue: () => request<any>('/api/transactions/admin/revenue'),
   getByStatus: (status: string) => request<Transaction[]>(`/api/transactions/status/${status}`),
   create: (data: Omit<Transaction, 'id'>) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(data) }),

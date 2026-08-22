@@ -60,7 +60,7 @@ public class AuthController {
         String token = jwtUtil.generateToken(student.getEmail(), student.getId(), roleName(student));
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new AuthResponse(token, student.getId(), student.getStudentName(), student.getEmail(), roleName(student)));
+                .body(new AuthResponse(token, student.getId(), student.getStudentName(), student.getEmail(), roleName(student), student.getLocationAddress()));
     }
 
     @PostMapping("/login")
@@ -78,6 +78,6 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(student.getEmail(), student.getId(), roleName(student));
 
-        return ResponseEntity.ok(new AuthResponse(token, student.getId(), student.getStudentName(), student.getEmail(), roleName(student)));
+        return ResponseEntity.ok(new AuthResponse(token, student.getId(), student.getStudentName(), student.getEmail(), roleName(student), student.getLocationAddress()));
     }
 }

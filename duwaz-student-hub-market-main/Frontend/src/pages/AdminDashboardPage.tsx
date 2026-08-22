@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { adminApi, ordersApi, deliveriesApi, messagesApi, productsApi, businessesApi } from '@/services/api';
+import { adminApi, ordersApi, deliveriesApi, messagesApi, productsApi, businessesApi, transactionsApi } from '@/services/api';
 import { ALL_STATUSES, getStatusBadge, ORDER_STATUS_LABELS } from '@/lib/orderUtils';
 import { useCategories } from '@/hooks/useCategories';
 import type { Order, OrderStatus, DeliveryDriver, StoreMessage, Product, Business, ProductStatus } from '@/types';
@@ -149,6 +149,7 @@ const AdminDashboardPage = () => {
 
   // Data queries
   const { data: stats, isLoading: statsLoading } = useQuery({ queryKey: ['admin', 'stats'], queryFn: adminApi.getStats, refetchInterval: 30000 });
+  const { data: duwazRevenue } = useQuery({ queryKey: ['admin', 'duwaz-revenue'], queryFn: transactionsApi.getAdminRevenue, refetchInterval: 60000 });
   const { data: ordersPage, isLoading: ordersLoading } = useQuery({ queryKey: ['admin', 'orders', page], queryFn: () => ordersApi.getAll(page, 20) });
   const { data: users = [] } = useQuery({ queryKey: ['admin', 'users'], queryFn: adminApi.getUsers });
   const { data: allDrivers = [] } = useQuery({ queryKey: ['admin', 'drivers'], queryFn: deliveriesApi.getAllDrivers, refetchInterval: 15000 });
@@ -183,6 +184,7 @@ const AdminDashboardPage = () => {
       messagesApi.forwardToDriver(messageId, driverId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'deliveries'] });
       toast({ title: 'Forwarded to driver', description: 'Driver has been notified with full delivery details.' });
     },
     onError: (e: any) => toast({ title: 'Forward failed', description: e.message, variant: 'destructive' }),
@@ -220,11 +222,12 @@ const AdminDashboardPage = () => {
 
       {/* Stats */}
       {!statsLoading && stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
           <StatCard title="Users" value={stats.totalUsers} icon={Users} color="bg-blue-500" />
           <StatCard title="Shops" value={stats.totalShops} icon={Store} color="bg-purple-500" />
           <StatCard title="Products" value={stats.totalProducts} icon={Package} color="bg-orange-500" />
-          <StatCard title="Revenue" value={`R${Number(stats.totalRevenue ?? 0).toFixed(0)}`} icon={TrendingUp} color="bg-duwaz-brown" />
+          <StatCard title="Revenue (Gross)" value={`R${Number(stats.totalRevenue ?? 0).toFixed(0)}`} icon={TrendingUp} color="bg-duwaz-brown" />
+          <StatCard title="Duwaz 5% Fee" value={`R${Number(duwazRevenue?.duwazRevenue ?? 0).toFixed(2)}`} icon={TrendingUp} color="bg-emerald-600" sub="platform earnings" />
           <StatCard title="Pending" value={stats.pendingOrders} icon={AlertCircle} color="bg-yellow-500" sub={`${stats.readyForPickup ?? 0} ready for pickup`} />
           <StatCard title="Drivers" value={`${stats.availableDrivers ?? 0}/${stats.totalDrivers ?? 0}`} icon={Truck} color="bg-green-500" sub={`${stats.busyDrivers ?? 0} busy`} />
         </div>
@@ -499,7 +502,11 @@ const AdminDashboardPage = () => {
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setViewingMessage(msg); markReadMutation.mutate(msg.id); }}>View</Button>
                           {msg.status !== 'RESOLVED' && <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-600" onClick={() => { setReplyingTo(msg); setReplyContent(''); markReadMutation.mutate(msg.id); }}><Send className="h-3 w-3 mr-1" />Reply</Button>}
                           {isDelivery && msg.order && (
-                            <>
+                            msg.status === 'RESOLVED' ? (
+                              <span className="h-7 flex items-center text-xs px-2 rounded-full bg-green-100 text-green-700 font-medium">
+                                <CheckCircle className="h-3 w-3 mr-1" />Driver Assigned
+                              </span>
+                            ) : (
                               <Button
                                 size="sm"
                                 className="h-7 text-xs bg-duwaz-brown hover:bg-duwaz-brown/90 text-white"
@@ -507,7 +514,7 @@ const AdminDashboardPage = () => {
                               >
                                 <Truck className="h-3 w-3 mr-1" />Assign & Forward to Driver
                               </Button>
-                            </>
+                            )
                           )}
                           {!isDelivery && msg.status !== 'RESOLVED' && (
                             <Button

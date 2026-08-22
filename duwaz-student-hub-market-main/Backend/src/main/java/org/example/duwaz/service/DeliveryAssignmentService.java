@@ -79,6 +79,13 @@ public class DeliveryAssignmentService {
 
         DeliveryAssignment saved = assignmentRepository.save(assignment);
 
+        // Auto-resolve the shop's delivery request message for this order
+        try {
+            messageService.resolveDeliveryRequestForOrder(orderId);
+        } catch (Exception e) {
+            System.err.println("[DeliveryAssignmentService] Could not resolve delivery request message: " + e.getMessage());
+        }
+
         // Send OTP to the customer's email address (async — won't block response)
         if (order.getStudent() != null && order.getStudent().getEmail() != null) {
             emailService.sendOtpEmail(

@@ -40,6 +40,7 @@ const LoginPage = () => {
         studentName: response.studentName,
         email: response.email,
         role,
+        locationAddress: (response as any).locationAddress ?? undefined,
       });
 
       toast({ title: 'Welcome back!', description: `Signed in as ${response.studentName}` });

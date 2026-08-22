@@ -50,6 +50,16 @@ public class Order {
     @Column(name = "cancellation_reason")
     private String cancellationReason;
 
+    /** The delivery fee component (charged separately, goes to driver + ops) */
+    @Column(name = "delivery_fee", precision = 10, scale = 2)
+    private BigDecimal deliveryFee = BigDecimal.ZERO;
+
+    /** Product subtotal = totalAmount - deliveryFee. Used for revenue split. */
+    public BigDecimal getProductSubtotal() {
+        if (deliveryFee == null) return totalAmount;
+        return totalAmount.subtract(deliveryFee).max(BigDecimal.ZERO);
+    }
+
     @PrePersist
     protected void onCreate() {
         if (orderDate == null) orderDate = LocalDateTime.now();
@@ -85,4 +95,7 @@ public class Order {
 
     public String getCancellationReason() { return cancellationReason; }
     public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+
+    public BigDecimal getDeliveryFee() { return deliveryFee != null ? deliveryFee : BigDecimal.ZERO; }
+    public void setDeliveryFee(BigDecimal deliveryFee) { this.deliveryFee = deliveryFee; }
 }

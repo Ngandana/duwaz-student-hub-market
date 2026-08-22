@@ -2,6 +2,7 @@ package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Student;
 import org.example.duwaz.classesFolder.Transaction;
+import org.example.duwaz.repo.BusinessRepository;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.TransactionService;
 import org.springframework.http.HttpStatus;
@@ -22,11 +23,14 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final StudentRepository studentRepository;
+    private final BusinessRepository businessRepository;
 
     public TransactionController(TransactionService transactionService,
-                                  StudentRepository studentRepository) {
+                                  StudentRepository studentRepository,
+                                  BusinessRepository businessRepository) {
         this.transactionService = transactionService;
         this.studentRepository = studentRepository;
+        this.businessRepository = businessRepository;
     }
 
     private Optional<Student> currentStudent(Authentication auth) {
@@ -86,10 +90,41 @@ public class TransactionController {
     public ResponseEntity<?> getByStudent(@PathVariable Long studentId, Authentication auth) {
         Optional<Student> caller = currentStudent(auth);
         if (caller.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // Allow own or admin
         if (!caller.get().isAdmin() && !caller.get().getId().equals(studentId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
         return ResponseEntity.ok(transactionService.getByStudentId(studentId));
+    }
+
+    // ── Shop owner: net revenue after splits ──────────────────────────────────
+    @GetMapping("/my/shop-revenue")
+    public ResponseEntity<?> getMyShopRevenue(Authentication auth) {
+        Optional<Student> studentOpt = currentStudent(auth);
+        if (studentOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Student not found");
+
+        return businessRepository.findFirstByStudentEmail(auth.getName())
+            .map(biz -> {
+                BigDecimal shopRevenue = transactionService.getShopOwnerRevenue(biz.getId());
+                return ResponseEntity.ok(Map.of(
+                    "businessId",  biz.getId(),
+                    "shopRevenue", shopRevenue,
+                    "note", "85% of product subtotal — after Duwaz 5% and driver 10% deductions"
+                ));
+            })
+            .orElse(ResponseEntity.ok(Map.of("shopRevenue", 0, "message", "No shop found")));
+    }
+
+    // ── Admin: Duwaz platform revenue ─────────────────────────────────────────
+    @GetMapping("/admin/revenue")
+    public ResponseEntity<?> getAdminRevenue(Authentication auth) {
+        Optional<Student> s = currentStudent(auth);
+        if (s.isEmpty() || !s.get().isAdmin()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
+        }
+        BigDecimal duwazRevenue = transactionService.getDuwazTotalRevenue();
+        return ResponseEntity.ok(Map.of(
+            "duwazRevenue", duwazRevenue,
+            "note", "5% platform fee from all delivered orders"
+        ));
     }
 }

@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUpdateBusiness } from '@/hooks/useBusinesses';
 import { useBusinessProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useAdjustStock } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
-import { shopApi, ordersApi, messagesApi } from '@/services/api';
+import { shopApi, ordersApi, messagesApi, transactionsApi } from '@/services/api';
 import { getStatusBadge, NEXT_STATUSES, ORDER_STATUS_LABELS } from '@/lib/orderUtils';
 import { useShopContext } from '@/context/ShopContext';
 import type { Product, OrderStatus, ProductStatus, StoreMessage } from '@/types';
@@ -100,6 +100,12 @@ const ShopDashboardPage = () => {
     enabled: !!shop,
     refetchInterval: 30000,
   });
+
+  const { data: shopRevenue } = useQuery({
+    queryKey: ['shop', 'revenue'],
+    queryFn: transactionsApi.getMyShopRevenue,
+    enabled: !!shop,
+  });
   const { data: ordersPage } = useQuery({
     queryKey: ['orders', 'shop'],
     queryFn: () => ordersApi.getShopOrders(0, 100),
@@ -150,6 +156,13 @@ const ShopDashboardPage = () => {
   });
 
   const unreadReplies = myMessages.filter(m => m.replyContent && m.status === 'REPLIED').length;
+
+  // Track which orders already have a delivery request sent to Admin
+  const forwardedOrderIds = new Set<number>(
+    (myMessages as any[])
+      .filter(m => m.messageType === 'DELIVERY_REQUEST' && m.order?.id)
+      .map(m => Number(m.order.id))
+  );
 
   // UI state
   const [productSearch, setProductSearch] = useState('');
@@ -225,9 +238,9 @@ const ShopDashboardPage = () => {
       ...(productForm.imageBase64 ? { imageUrl: productForm.imageBase64 } : {}),
     };
     if (editingProduct) {
-      updateProduct({ id: editingProduct.id, data: payload }, { onSuccess: () => { toast({ title: 'Product updated!' }); setProductDialogOpen(false); qc.invalidateQueries({ queryKey: ['shop', 'stats'] }); }, onError: (err) => toast({ title: 'Failed', description: err.message, variant: 'destructive' }) });
+      updateProduct({ id: editingProduct.id, data: payload }, { onSuccess: () => { toast({ title: 'Product updated!' }); setProductDialogOpen(false); qc.invalidateQueries({ queryKey: ['shop', 'stats'] }); }, onError: (err) => toast({ title: 'Failed to update product', description: err.message, variant: 'destructive' }) });
     } else {
-      createProduct(payload, { onSuccess: () => { toast({ title: 'Product added!' }); setProductDialogOpen(false); qc.invalidateQueries({ queryKey: ['shop', 'stats'] }); }, onError: (err) => toast({ title: 'Failed', description: err.message, variant: 'destructive' }) });
+      createProduct(payload, { onSuccess: () => { toast({ title: 'Product added!' }); setProductDialogOpen(false); qc.invalidateQueries({ queryKey: ['shop', 'stats'] }); }, onError: (err) => toast({ title: 'Failed to add product', description: err.message, variant: 'destructive' }) });
     }
   };
   const confirmDelete = () => {
@@ -291,13 +304,32 @@ const ShopDashboardPage = () => {
 
       {/* ── KPI Cards ── */}
       {!statsLoading && stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
           <StatCard title="Total Revenue" value={`R${Number(stats.totalRevenue ?? 0).toFixed(0)}`} icon={TrendingUp} color="bg-duwaz-brown" />
           <StatCard title="Total Orders" value={stats.totalOrders} icon={ShoppingCart} color="bg-blue-500" />
           <StatCard title="Pending" value={stats.pendingOrders} icon={AlertCircle} color="bg-yellow-500" />
           <StatCard title="Completed" value={stats.completedOrders} icon={CheckCircle} color="bg-green-500" />
           <StatCard title="Products" value={stats.totalProducts} icon={Package} color="bg-purple-500" />
           <StatCard title="Out of Stock" value={stats.outOfStockProducts} icon={AlertCircle} color="bg-red-500" sub={stats.lowStockProducts > 0 ? `${stats.lowStockProducts} low stock` : undefined} />
+          {/* Net earnings after splits */}
+          <StatCard
+            title="My Net Earnings"
+            value={`R${Number(shopRevenue?.shopRevenue ?? 0).toFixed(2)}`}
+            icon={TrendingUp}
+            color="bg-emerald-600"
+            sub="85% of product sales"
+          />
+        </div>
+      )}
+
+      {/* Revenue split info banner */}
+      {shopRevenue && Number(shopRevenue.shopRevenue) > 0 && (
+        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-xs flex flex-wrap gap-4">
+          <span className="font-semibold text-emerald-700">💰 Revenue Split per order:</span>
+          <span className="text-gray-600">You (shop) <strong className="text-emerald-700">85%</strong></span>
+          <span className="text-gray-600">Driver <strong className="text-amber-700">10%</strong></span>
+          <span className="text-gray-600">Duwaz platform <strong className="text-blue-700">5%</strong></span>
+          <span className="text-gray-400">· Delivery fee charged separately to customer</span>
         </div>
       )}
 
@@ -460,16 +492,30 @@ const ShopDashboardPage = () => {
                       <div className="flex items-center justify-between border-t pt-2">
                         <p className="font-bold text-sm">R{Number(order.totalAmount).toFixed(2)}</p>
                         <div className="flex items-center gap-2 flex-wrap justify-end">
-                          {/* Forward to Admin — visible on any active (non-terminal) order */}
+                          {/* Show delivery pipeline state */}
+                          {['OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1">
+                              <Truck className="h-3 w-3" />
+                              {order.status === 'DELIVERED' ? 'Delivered ✓' : 'Driver Assigned'}
+                            </span>
+                          )}
+                          {/* Forward to Admin — only if not already forwarded and not terminal */}
                           {!['CANCELLED', 'REFUNDED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs border-duwaz-brown text-duwaz-brown hover:bg-duwaz-brown hover:text-white"
-                              onClick={() => setRequestDeliveryOrderId(order.id)}
-                            >
-                              <Send className="h-3 w-3 mr-1" />Forward to Admin
-                            </Button>
+                            forwardedOrderIds.has(order.id) ? (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Forwarded to Admin
+                              </span>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs border-duwaz-brown text-duwaz-brown hover:bg-duwaz-brown hover:text-white"
+                                onClick={() => setRequestDeliveryOrderId(order.id)}
+                              >
+                                <Send className="h-3 w-3 mr-1" />Forward to Admin
+                              </Button>
+                            )
                           )}
                           {nextStatuses.length > 0 && (
                             <Select onValueChange={status => updateOrderMutation.mutate({ id: order.id, status })}>
@@ -606,7 +652,33 @@ const ShopDashboardPage = () => {
             <div className="space-y-1"><Label>Name <span className="text-red-500">*</span></Label><Input value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Cheese Chips" /></div>
             <div className="space-y-1"><Label>Description</Label><Textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="min-h-[60px]" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Price (R) <span className="text-red-500">*</span></Label><Input type="number" min="0" step="0.01" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} /></div>
+              <div className="space-y-1">
+                <Label>Price (R) <span className="text-red-500">*</span></Label>
+                <Input type="number" min="0" step="0.01" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} />
+                {/* Live fee preview */}
+                {productForm.price && Number(productForm.price) > 0 && (
+                  <div className="rounded-md bg-amber-50 border border-amber-200 p-2 space-y-1 text-xs">
+                    <p className="font-semibold text-amber-700">💡 Price breakdown for buyers:</p>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Your product price</span>
+                      <span>R{Number(productForm.price).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Duwaz platform fee (5%)</span>
+                      <span className="text-red-500">−R{(Number(productForm.price) * 0.05).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Delivery fee (10% to rider)</span>
+                      <span className="text-amber-600">+R{(Number(productForm.price) * 0.10).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-duwaz-brown border-t pt-1">
+                      <span>You receive (after Duwaz 5%)</span>
+                      <span>R{(Number(productForm.price) * 0.95).toFixed(2)}</span>
+                    </div>
+                    <p className="text-gray-400 text-xs">The delivery fee is charged separately to the customer on top of your price.</p>
+                  </div>
+                )}
+              </div>
               <div className="space-y-1"><Label>Stock Quantity</Label><Input type="number" min="0" value={productForm.stockQuantity} onChange={e => setProductForm(p => ({ ...p, stockQuantity: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: UserRole;
   profileImage?: string;
+  locationAddress?: string;
   // Driver-specific (only set when role === 'DRIVER')
   driverId?: number;
   driverStatus?: string;
@@ -52,8 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
             .then(r => r.ok ? r.json() : null)
             .then(student => {
-              if (student?.profileImage !== undefined) {
-                const updated = { ...parsedUser, profileImage: student.profileImage ?? undefined };
+              if (student?.profileImage !== undefined || student?.locationAddress !== undefined) {
+                const updated = {
+                  ...parsedUser,
+                  profileImage: student.profileImage ?? undefined,
+                  locationAddress: student.locationAddress ?? undefined,
+                };
                 setUser(updated);
                 localStorage.setItem(USER_KEY, JSON.stringify(updated));
               }

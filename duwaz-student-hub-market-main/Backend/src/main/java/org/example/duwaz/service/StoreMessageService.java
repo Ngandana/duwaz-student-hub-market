@@ -186,6 +186,22 @@ public class StoreMessageService {
         return messageRepository.save(driverMsg);
     }
 
+    // ── Auto-resolve delivery request when driver is assigned ─────────────────
+
+    /**
+     * Marks the DELIVERY_REQUEST message for a given order as RESOLVED.
+     * Called automatically when admin assigns a driver — the request is dealt with.
+     */
+    public void resolveDeliveryRequestForOrder(Long orderId) {
+        messageRepository.findAllByOrderIdOrderBySentAtDesc(orderId).stream()
+                .filter(m -> m.getMessageType() == MessageType.DELIVERY_REQUEST
+                        && m.getStatus() != MessageStatus.RESOLVED)
+                .forEach(m -> {
+                    m.setStatus(MessageStatus.RESOLVED);
+                    messageRepository.save(m);
+                });
+    }
+
     // ── Driver → Admin + Shop: status update notifications ───────────────────
 
     /**
