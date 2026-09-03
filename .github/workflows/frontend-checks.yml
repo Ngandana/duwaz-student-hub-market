@@ -1,0 +1,42 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'duwaz-student-hub-market-main/Frontend/**'
+      - '.github/workflows/frontend-checks.yml'
+  pull_request:
+    paths:
+      - 'duwaz-student-hub-market-main/Frontend/**'
+      - '.github/workflows/frontend-checks.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: duwaz-student-hub-market-main/Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: duwaz-student-hub-market-main/Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      # `npm run lint` isn't wired in here yet — there are ~55 pre-existing warnings/
+      # errors (mostly @typescript-eslint/no-explicit-any) across the codebase, and
+      # gating CI on that today would make it red from the first run. Worth cleaning
+      # up and adding back as its own pass rather than mixed into this.

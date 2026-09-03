@@ -15,7 +15,13 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    // No hardcoded fallback on purpose: the old default value here was the exact
+    // secret string that shipped in application.properties, which was committed to
+    // git — anyone with that string could forge a valid login token for any account.
+    // Requiring the property to be set (app fails fast at boot otherwise) means every
+    // environment must configure its own real secret instead of silently reusing a
+    // known, public one.
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
