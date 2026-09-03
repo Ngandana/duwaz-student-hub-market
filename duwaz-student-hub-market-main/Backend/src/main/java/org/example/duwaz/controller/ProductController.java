@@ -4,6 +4,8 @@ import org.example.duwaz.classesFolder.Business;
 import org.example.duwaz.classesFolder.Product;
 import org.example.duwaz.classesFolder.Product.ProductStatus;
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.dto.response.DtoMapper;
+import org.example.duwaz.dto.response.ProductDTO;
 import org.example.duwaz.repo.BusinessRepository;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.ProductService;
@@ -41,18 +43,18 @@ public class ProductController {
     // ── Public endpoints ──────────────────────────────────────────────────────
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
-        return ResponseEntity.ok(productService.getAllProducts());
+    public ResponseEntity<List<ProductDTO>> getAllProducts() {
+        return ResponseEntity.ok(DtoMapper.productList(productService.getAllProducts()));
     }
 
     @GetMapping("/business/{businessId}")
-    public ResponseEntity<List<Product>> getProductsByBusiness(@PathVariable Long businessId) {
-        return ResponseEntity.ok(productService.getProductsByBusiness(businessId));
+    public ResponseEntity<List<ProductDTO>> getProductsByBusiness(@PathVariable Long businessId) {
+        return ResponseEntity.ok(DtoMapper.productList(productService.getProductsByBusiness(businessId)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
-        return ResponseEntity.ok(productService.getProductById(id));
+    public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
+        return ResponseEntity.ok(DtoMapper.toDto(productService.getProductById(id)));
     }
 
     // ── Shop owner endpoints ──────────────────────────────────────────────────
@@ -71,7 +73,7 @@ public class ProductController {
             // Force product to belong to the owner's business
             product.setBusiness(biz.get());
         }
-        return ResponseEntity.status(201).body(productService.createProduct(product));
+        return ResponseEntity.status(201).body(DtoMapper.toDto(productService.createProduct(product)));
     }
 
     @PutMapping("/{id}")
@@ -87,7 +89,7 @@ public class ProductController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You don't own this product");
             }
         }
-        return ResponseEntity.ok(productService.updateProduct(id, product));
+        return ResponseEntity.ok(DtoMapper.toDto(productService.updateProduct(id, product)));
     }
 
     @DeleteMapping("/{id}")
@@ -121,7 +123,7 @@ public class ProductController {
         Integer delta = body.get("delta");
         if (delta == null) return ResponseEntity.badRequest().body("delta is required");
         try {
-            return ResponseEntity.ok(productService.adjustStock(id, delta));
+            return ResponseEntity.ok(DtoMapper.toDto(productService.adjustStock(id, delta)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

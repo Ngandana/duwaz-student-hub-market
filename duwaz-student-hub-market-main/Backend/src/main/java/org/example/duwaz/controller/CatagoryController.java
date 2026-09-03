@@ -1,6 +1,8 @@
 package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Category;
+import org.example.duwaz.dto.response.CategoryDTO;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.service.CatagoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -21,27 +23,27 @@ public class CatagoryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Category>> getAllCategories() {
+    public ResponseEntity<List<CategoryDTO>> getAllCategories() {
         List<Category> categories = catagoryService.getAllCategories();
-        return new ResponseEntity<>(categories, HttpStatus.OK);
+        return new ResponseEntity<>(DtoMapper.categoryList(categories), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Category> getCategoryById(@PathVariable Long id) {
+    public ResponseEntity<CategoryDTO> getCategoryById(@PathVariable Long id) {
         Category category = catagoryService.getCategoryById(id);
-        return new ResponseEntity<>(category, HttpStatus.OK);
+        return new ResponseEntity<>(DtoMapper.toDto(category), HttpStatus.OK);
     }
 
     @PostMapping
-    public ResponseEntity<Category> createCategory(@RequestBody Category category) {
+    public ResponseEntity<CategoryDTO> createCategory(@RequestBody Category category) {
         Category createdCategory = catagoryService.createCategory(category);
-        return new ResponseEntity<>(createdCategory, HttpStatus.CREATED);
+        return new ResponseEntity<>(DtoMapper.toDto(createdCategory), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Category> updateCategory(@PathVariable Long id, @RequestBody Category category) {
+    public ResponseEntity<CategoryDTO> updateCategory(@PathVariable Long id, @RequestBody Category category) {
         Category updatedCategory = catagoryService.updateCategory(id, category);
-        return new ResponseEntity<>(updatedCategory, HttpStatus.OK);
+        return new ResponseEntity<>(DtoMapper.toDto(updatedCategory), HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")

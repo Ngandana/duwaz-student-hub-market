@@ -1,6 +1,8 @@
 package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Rewards;
+import org.example.duwaz.dto.response.DtoMapper;
+import org.example.duwaz.dto.response.RewardDTO;
 import org.example.duwaz.service.RewardsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,23 +22,23 @@ public class RewardController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Rewards>> getAllRewards() {
-        return ResponseEntity.ok(rewardsService.getAllRewards());
+    public ResponseEntity<List<RewardDTO>> getAllRewards() {
+        return ResponseEntity.ok(DtoMapper.rewardList(rewardsService.getAllRewards()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Rewards> getRewardById(@PathVariable Long id) {
-        return ResponseEntity.ok(rewardsService.getRewardById(id));
+    public ResponseEntity<RewardDTO> getRewardById(@PathVariable Long id) {
+        return ResponseEntity.ok(DtoMapper.toDto(rewardsService.getRewardById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Rewards> createReward(@RequestBody Rewards reward) {
-        return ResponseEntity.status(201).body(rewardsService.createReward(reward));
+    public ResponseEntity<RewardDTO> createReward(@RequestBody Rewards reward) {
+        return ResponseEntity.status(201).body(DtoMapper.toDto(rewardsService.createReward(reward)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Rewards> updateReward(@PathVariable Long id, @RequestBody Rewards updatedReward) {
-        return ResponseEntity.ok(rewardsService.updateReward(id, updatedReward));
+    public ResponseEntity<RewardDTO> updateReward(@PathVariable Long id, @RequestBody Rewards updatedReward) {
+        return ResponseEntity.ok(DtoMapper.toDto(rewardsService.updateReward(id, updatedReward)));
     }
 
     @DeleteMapping("/{id}")

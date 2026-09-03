@@ -2,6 +2,7 @@ package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Student;
 import org.example.duwaz.classesFolder.Transaction;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.repo.BusinessRepository;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.TransactionService;
@@ -43,7 +44,7 @@ public class TransactionController {
     public ResponseEntity<?> getMyTransactions(Authentication auth) {
         Optional<Student> studentOpt = currentStudent(auth);
         if (studentOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Student not found");
-        return ResponseEntity.ok(transactionService.getByStudentId(studentOpt.get().getId()));
+        return ResponseEntity.ok(DtoMapper.transactionList(transactionService.getByStudentId(studentOpt.get().getId())));
     }
 
     /**
@@ -71,8 +72,8 @@ public class TransactionController {
         summary.put("totalPoints",      totalPoints);
         summary.put("availablePoints",  availablePoints);
         summary.put("pointsValue",      pointsValue);
-        summary.put("rewardHistory",    transactionService.getRewardHistoryByStudentId(studentId));
-        summary.put("transactions",     transactionService.getByStudentId(studentId));
+        summary.put("rewardHistory",    DtoMapper.studentRewardList(transactionService.getRewardHistoryByStudentId(studentId)));
+        summary.put("transactions",     DtoMapper.transactionList(transactionService.getByStudentId(studentId)));
 
         return ResponseEntity.ok(summary);
     }
@@ -85,7 +86,7 @@ public class TransactionController {
         if (s.isEmpty() || !s.get().isAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
         }
-        return ResponseEntity.ok(transactionService.getByStudentId(null));
+        return ResponseEntity.ok(DtoMapper.transactionList(transactionService.getByStudentId(null)));
     }
 
     @GetMapping("/student/{studentId}")
@@ -95,7 +96,7 @@ public class TransactionController {
         if (!caller.get().isAdmin() && !caller.get().getId().equals(studentId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
-        return ResponseEntity.ok(transactionService.getByStudentId(studentId));
+        return ResponseEntity.ok(DtoMapper.transactionList(transactionService.getByStudentId(studentId)));
     }
 
     // ── Shop owner: net revenue after splits ──────────────────────────────────

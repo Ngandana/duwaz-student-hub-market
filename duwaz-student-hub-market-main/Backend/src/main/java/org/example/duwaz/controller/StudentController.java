@@ -1,6 +1,7 @@
 package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.StudentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,7 +45,7 @@ public class StudentController {
         if (requireSelfOrAdmin(auth, studentId) == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
-        return ResponseEntity.ok(service.findStudentById(studentId));
+        return ResponseEntity.ok(DtoMapper.toDto(service.findStudentById(studentId)));
     }
 
     @PutMapping("/update")
@@ -52,7 +53,7 @@ public class StudentController {
         if (student.getId() == null || requireSelfOrAdmin(auth, student.getId()) == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
-        return ResponseEntity.ok(service.updateStudent(student));
+        return ResponseEntity.ok(DtoMapper.toDto(service.updateStudent(student)));
     }
 
     @DeleteMapping("/delete/{id}")
@@ -71,6 +72,6 @@ public class StudentController {
         if (requester == null || !requester.isAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin access required");
         }
-        return ResponseEntity.ok(service.getAllStudents());
+        return ResponseEntity.ok(DtoMapper.studentList(service.getAllStudents()));
     }
 }

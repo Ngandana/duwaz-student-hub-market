@@ -3,7 +3,11 @@ package org.example.duwaz.controller;
 import org.example.duwaz.classesFolder.DeliverDriver;
 import org.example.duwaz.classesFolder.DeliveryAssignment;
 import org.example.duwaz.classesFolder.DeliveryAssignment.DeliveryStatus;
+import org.example.duwaz.classesFolder.DriverEarning;
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.dto.response.DeliveryAssignmentDTO;
+import org.example.duwaz.dto.response.DriverDTO;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.repo.DeliverDriverRepository;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.DeliveryAssignmentService;
@@ -55,14 +59,14 @@ public class DeliveryController {
     @GetMapping("/drivers/available")
     public ResponseEntity<?> getAvailableDrivers(Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
-        return ResponseEntity.ok(driverRepository.findByStatusAndActiveTrue(DeliverDriver.DriverStatus.AVAILABLE));
+        return ResponseEntity.ok(DtoMapper.driverList(driverRepository.findByStatusAndActiveTrue(DeliverDriver.DriverStatus.AVAILABLE)));
     }
 
     // ── Admin: get all drivers ────────────────────────────────────────────────
     @GetMapping("/drivers")
     public ResponseEntity<?> getAllDrivers(Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
-        return ResponseEntity.ok(driverRepository.findAll());
+        return ResponseEntity.ok(DtoMapper.driverList(driverRepository.findAll()));
     }
 
     // ── Admin: assign driver to order ─────────────────────────────────────────
@@ -75,7 +79,7 @@ public class DeliveryController {
             return ResponseEntity.badRequest().body("orderId and driverId are required");
         }
         try {
-            return ResponseEntity.ok(assignmentService.assignDriver(orderId, driverId));
+            return ResponseEntity.ok(DtoMapper.toDto(assignmentService.assignDriver(orderId, driverId)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -85,14 +89,14 @@ public class DeliveryController {
     @GetMapping
     public ResponseEntity<?> getAllAssignments(Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
-        return ResponseEntity.ok(assignmentService.getAllAssignments());
+        return ResponseEntity.ok(DtoMapper.assignmentList(assignmentService.getAllAssignments()));
     }
 
     // ── Admin: get assignment by order ────────────────────────────────────────
     @GetMapping("/order/{orderId}")
     public ResponseEntity<?> getAssignmentByOrder(@PathVariable Long orderId, Authentication auth) {
         return assignmentService.getAssignmentByOrder(orderId)
-                .map(ResponseEntity::ok)
+                .map(a -> ResponseEntity.ok(DtoMapper.toDto(a)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -101,7 +105,7 @@ public class DeliveryController {
     public ResponseEntity<?> getMyDeliveries(Authentication auth) {
         Optional<DeliverDriver> driverOpt = getDriverFromAuth(auth);
         if (driverOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Driver access only");
-        return ResponseEntity.ok(assignmentService.getAssignmentsByDriver(driverOpt.get().getDeliveryDriverId()));
+        return ResponseEntity.ok(DtoMapper.assignmentList(assignmentService.getAssignmentsByDriver(driverOpt.get().getDeliveryDriverId())));
     }
 
     // ── Driver: active deliveries only ───────────────────────────────────────
@@ -109,7 +113,7 @@ public class DeliveryController {
     public ResponseEntity<?> getMyActiveDeliveries(Authentication auth) {
         Optional<DeliverDriver> driverOpt = getDriverFromAuth(auth);
         if (driverOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Driver access only");
-        return ResponseEntity.ok(assignmentService.getActiveAssignmentsByDriver(driverOpt.get().getDeliveryDriverId()));
+        return ResponseEntity.ok(DtoMapper.assignmentList(assignmentService.getActiveAssignmentsByDriver(driverOpt.get().getDeliveryDriverId())));
     }
 
     // ── Driver: accept a delivery assignment ─────────────────────────────────
@@ -134,7 +138,7 @@ public class DeliveryController {
 
         messageService.notifyAcceptance(updated);
 
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(DtoMapper.toDto(updated));
     }
 
     // ── Driver: update delivery status ────────────────────────────────────────
@@ -175,7 +179,7 @@ public class DeliveryController {
 
         try {
             DeliveryStatus newStatus = DeliveryStatus.valueOf(statusStr.toUpperCase().trim());
-            return ResponseEntity.ok(assignmentService.updateStatus(id, newStatus, notes, proof));
+            return ResponseEntity.ok(DtoMapper.toDto(assignmentService.updateStatus(id, newStatus, notes, proof)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid status: " + statusStr);
         } catch (RuntimeException e) {
@@ -191,7 +195,7 @@ public class DeliveryController {
         String otp = body.get("otp");
         if (otp == null) return ResponseEntity.badRequest().body("OTP required");
         try {
-            return ResponseEntity.ok(assignmentService.verifyOtp(id, otp));
+            return ResponseEntity.ok(DtoMapper.toDto(assignmentService.verifyOtp(id, otp)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -213,7 +217,7 @@ public class DeliveryController {
                 return ResponseEntity.badRequest().body("Cannot set available while on an active delivery");
             }
             driver.setStatus(newStatus);
-            return ResponseEntity.ok(driverRepository.save(driver));
+            return ResponseEntity.ok(DtoMapper.toDto(driverRepository.save(driver)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid status: " + statusStr);
         }
@@ -221,10 +225,10 @@ public class DeliveryController {
 
     // ── Driver: get own profile ───────────────────────────────────────────────
     @GetMapping("/profile")
-    public ResponseEntity<?> getMyProfile(Authentication auth) {
+    public ResponseEntity<DriverDTO> getMyProfile(Authentication auth) {
         Optional<DeliverDriver> driverOpt = getDriverFromAuth(auth);
-        if (driverOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Driver access only");
-        return ResponseEntity.ok(driverOpt.get());
+        if (driverOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(DtoMapper.toDto(driverOpt.get()));
     }
 
     // ── Driver: update own profile ────────────────────────────────────────────
@@ -241,7 +245,7 @@ public class DeliveryController {
         if (body.containsKey("emergencyContact")) driver.setEmergencyContact(body.get("emergencyContact"));
         if (body.containsKey("profileImage")) driver.setProfileImage(body.get("profileImage"));
 
-        return ResponseEntity.ok(driverRepository.save(driver));
+        return ResponseEntity.ok(DtoMapper.toDto(driverRepository.save(driver)));
     }
 
     // ── Driver: update live location ──────────────────────────────────────────
@@ -262,7 +266,7 @@ public class DeliveryController {
         driver.setLatitude(lat);
         driver.setLongitude(lng);
         driver.setLastLocationUpdate(java.time.LocalDateTime.now());
-        return ResponseEntity.ok(driverRepository.save(driver));
+        return ResponseEntity.ok(DtoMapper.toDto(driverRepository.save(driver)));
     }
 
     // ── Driver: my earnings ───────────────────────────────────────────────────
@@ -283,7 +287,7 @@ public class DeliveryController {
 
         Long driverId = driverOpt.get().getDeliveryDriverId();
         java.math.BigDecimal total = transactionService.getTotalEarningsByDriverId(driverId);
-        java.util.List<?> history  = transactionService.getEarningsByDriverId(driverId);
+        List<DriverEarning> history = transactionService.getEarningsByDriverId(driverId);
         int deliveryCount          = driverOpt.get().getDeliveryCount();
 
         java.math.BigDecimal avg = deliveryCount > 0
@@ -294,7 +298,7 @@ public class DeliveryController {
         result.put("totalEarnings",      total);
         result.put("deliveryCount",      deliveryCount);
         result.put("averagePerDelivery", avg);
-        result.put("earnings",           history);
+        result.put("earnings",           DtoMapper.driverEarningList(history));
         return ResponseEntity.ok(result);
     }
 }

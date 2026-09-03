@@ -3,6 +3,7 @@ package org.example.duwaz.controller;
 import org.example.duwaz.classesFolder.DeliverDriver.DriverStatus;
 import org.example.duwaz.classesFolder.Order.OrderStatus;
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.repo.BusinessRepository;
 import org.example.duwaz.repo.DeliverDriverRepository;
 import org.example.duwaz.repo.ProductRepository;
@@ -75,7 +76,7 @@ public class AdminController {
         if (!isAdmin(auth)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin access required");
         }
-        return ResponseEntity.ok(studentRepository.findAll());
+        return ResponseEntity.ok(DtoMapper.studentList(studentRepository.findAll()));
     }
 
     @PutMapping("/users/{id}/role")
@@ -90,7 +91,7 @@ public class AdminController {
         try {
             Student.Role role = Student.Role.valueOf(body.get("role").toUpperCase());
             student.setRole(role);
-            return ResponseEntity.ok(studentRepository.save(student));
+            return ResponseEntity.ok(DtoMapper.toDto(studentRepository.save(student)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid role");
         }

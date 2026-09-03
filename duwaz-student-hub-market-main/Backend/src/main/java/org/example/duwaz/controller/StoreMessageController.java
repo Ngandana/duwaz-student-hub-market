@@ -5,6 +5,7 @@ import org.example.duwaz.classesFolder.DeliverDriver;
 import org.example.duwaz.classesFolder.StoreMessage;
 import org.example.duwaz.classesFolder.StoreMessage.MessageStatus;
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.repo.BusinessRepository;
 import org.example.duwaz.repo.DeliverDriverRepository;
 import org.example.duwaz.repo.StudentRepository;
@@ -60,7 +61,7 @@ public class StoreMessageController {
         String subject = body.getOrDefault("subject", "General Enquiry");
         String content = body.get("content");
         if (content == null || content.trim().isEmpty()) return ResponseEntity.badRequest().body("Content required");
-        return ResponseEntity.status(HttpStatus.CREATED).body(messageService.sendMessage(biz.get(), subject, content));
+        return ResponseEntity.status(HttpStatus.CREATED).body(DtoMapper.toDto(messageService.sendMessage(biz.get(), subject, content)));
     }
 
     @PostMapping("/request-delivery/{orderId}")
@@ -68,7 +69,7 @@ public class StoreMessageController {
         Optional<Business> biz = getOwnerBusiness(auth);
         if (biz.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You don't own a shop");
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(messageService.requestDelivery(biz.get(), orderId));
+            return ResponseEntity.status(HttpStatus.CREATED).body(DtoMapper.toDto(messageService.requestDelivery(biz.get(), orderId)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -78,7 +79,7 @@ public class StoreMessageController {
     public ResponseEntity<?> getMyMessages(Authentication auth) {
         Optional<Business> biz = getOwnerBusiness(auth);
         if (biz.isEmpty()) return ResponseEntity.ok(List.of());
-        return ResponseEntity.ok(messageService.getMessagesForBusiness(biz.get().getId()));
+        return ResponseEntity.ok(DtoMapper.messageList(messageService.getMessagesForBusiness(biz.get().getId())));
     }
 
     // ── Driver endpoints ──────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ public class StoreMessageController {
     public ResponseEntity<?> getMyDriverMessages(Authentication auth) {
         Optional<DeliverDriver> driverOpt = getDriverFromAuth(auth);
         if (driverOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Driver access only");
-        return ResponseEntity.ok(messageService.getMessagesForDriver(driverOpt.get().getDeliveryDriverId()));
+        return ResponseEntity.ok(DtoMapper.messageList(messageService.getMessagesForDriver(driverOpt.get().getDeliveryDriverId())));
     }
 
     /** Driver gets count of unread messages */
@@ -111,7 +112,7 @@ public class StoreMessageController {
         String replyContent = body.get("replyContent");
         if (replyContent == null || replyContent.trim().isEmpty()) return ResponseEntity.badRequest().body("replyContent required");
         try {
-            return ResponseEntity.ok(messageService.driverReply(id, replyContent));
+            return ResponseEntity.ok(DtoMapper.toDto(messageService.driverReply(id, replyContent)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -123,7 +124,7 @@ public class StoreMessageController {
         Optional<DeliverDriver> driverOpt = getDriverFromAuth(auth);
         if (driverOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Driver access only");
         try {
-            return ResponseEntity.ok(messageService.markRead(id));
+            return ResponseEntity.ok(DtoMapper.toDto(messageService.markRead(id)));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -137,12 +138,12 @@ public class StoreMessageController {
         if (status != null && !status.equalsIgnoreCase("ALL")) {
             try {
                 MessageStatus s = MessageStatus.valueOf(status.toUpperCase());
-                return ResponseEntity.ok(messageService.getByStatus(s));
+                return ResponseEntity.ok(DtoMapper.messageList(messageService.getByStatus(s)));
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body("Invalid status: " + status);
             }
         }
-        return ResponseEntity.ok(messageService.getAllMessages());
+        return ResponseEntity.ok(DtoMapper.messageList(messageService.getAllMessages()));
     }
 
     @GetMapping("/unread-count")
@@ -157,7 +158,7 @@ public class StoreMessageController {
     public ResponseEntity<?> markRead(@PathVariable Long id, Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
         try {
-            return ResponseEntity.ok(messageService.markRead(id));
+            return ResponseEntity.ok(DtoMapper.toDto(messageService.markRead(id)));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -169,7 +170,7 @@ public class StoreMessageController {
         String replyContent = body.get("replyContent");
         if (replyContent == null || replyContent.trim().isEmpty()) return ResponseEntity.badRequest().body("replyContent required");
         try {
-            return ResponseEntity.ok(messageService.adminReply(id, replyContent));
+            return ResponseEntity.ok(DtoMapper.toDto(messageService.adminReply(id, replyContent)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -179,7 +180,7 @@ public class StoreMessageController {
     public ResponseEntity<?> resolve(@PathVariable Long id, Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
         try {
-            return ResponseEntity.ok(messageService.resolve(id));
+            return ResponseEntity.ok(DtoMapper.toDto(messageService.resolve(id)));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -195,7 +196,7 @@ public class StoreMessageController {
         String content = body.get("content") != null ? body.get("content").toString() : "";
         if (content.trim().isEmpty()) return ResponseEntity.badRequest().body("content required");
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(messageService.sendToDriver(driverId, orderId, subject, content));
+            return ResponseEntity.status(HttpStatus.CREATED).body(DtoMapper.toDto(messageService.sendToDriver(driverId, orderId, subject, content)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -208,7 +209,7 @@ public class StoreMessageController {
                                               Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin only");
         try {
-            return ResponseEntity.ok(messageService.forwardDeliveryRequest(id, driverId));
+            return ResponseEntity.ok(DtoMapper.toDto(messageService.forwardDeliveryRequest(id, driverId)));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

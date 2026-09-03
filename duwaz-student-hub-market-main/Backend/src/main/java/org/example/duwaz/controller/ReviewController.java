@@ -1,6 +1,8 @@
 package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Review;
+import org.example.duwaz.dto.response.DtoMapper;
+import org.example.duwaz.dto.response.ReviewDTO;
 import org.example.duwaz.service.ReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,30 +23,30 @@ public class ReviewController {
     }
 
     @PostMapping
-    public ResponseEntity<Review> createReview(@RequestBody Review review) {
-        return ResponseEntity.status(201).body(reviewService.createReview(review));
+    public ResponseEntity<ReviewDTO> createReview(@RequestBody Review review) {
+        return ResponseEntity.status(201).body(DtoMapper.toDto(reviewService.createReview(review)));
     }
 
     @GetMapping
-    public ResponseEntity<List<Review>> getAllReviews() {
-        return ResponseEntity.ok(reviewService.getAllReviews());
+    public ResponseEntity<List<ReviewDTO>> getAllReviews() {
+        return ResponseEntity.ok(DtoMapper.reviewList(reviewService.getAllReviews()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Review> getReviewById(@PathVariable Long id) {
+    public ResponseEntity<ReviewDTO> getReviewById(@PathVariable Long id) {
         Optional<Review> review = reviewService.getReviewById(id);
-        return review.map(ResponseEntity::ok)
+        return review.map(r -> ResponseEntity.ok(DtoMapper.toDto(r)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/product/{productId}")
-    public ResponseEntity<List<Review>> getReviewsByProductId(@PathVariable Long productId) {
-        return ResponseEntity.ok(reviewService.getReviewsByProductId(productId));
+    public ResponseEntity<List<ReviewDTO>> getReviewsByProductId(@PathVariable Long productId) {
+        return ResponseEntity.ok(DtoMapper.reviewList(reviewService.getReviewsByProductId(productId)));
     }
 
     @GetMapping("/student/{studentId}")
-    public ResponseEntity<List<Review>> getReviewsByStudentId(@PathVariable Long studentId) {
-        return ResponseEntity.ok(reviewService.getReviewsByStudentId(studentId));
+    public ResponseEntity<List<ReviewDTO>> getReviewsByStudentId(@PathVariable Long studentId) {
+        return ResponseEntity.ok(DtoMapper.reviewList(reviewService.getReviewsByStudentId(studentId)));
     }
 
     @DeleteMapping("/{id}")

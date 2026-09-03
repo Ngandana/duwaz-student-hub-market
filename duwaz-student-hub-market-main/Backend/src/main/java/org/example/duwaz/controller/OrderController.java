@@ -4,6 +4,8 @@ import org.example.duwaz.classesFolder.Business;
 import org.example.duwaz.classesFolder.Order;
 import org.example.duwaz.classesFolder.Order.OrderStatus;
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.dto.response.DtoMapper;
+import org.example.duwaz.dto.response.OrderDTO;
 import org.example.duwaz.repo.BusinessRepository;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.OrderService;
@@ -37,7 +39,7 @@ public class OrderController {
 
     // ── Customer: place order ─────────────────────────────────────────────────
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody Order order, Authentication auth) {
+    public ResponseEntity<OrderDTO> createOrder(@RequestBody Order order, Authentication auth) {
         String email = auth.getName();
         Student student = studentRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
@@ -50,16 +52,16 @@ public class OrderController {
             order.setBusiness(business);
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderService.createOrder(order));
+        return ResponseEntity.status(HttpStatus.CREATED).body(DtoMapper.toDto(orderService.createOrder(order)));
     }
 
     // ── Customer: my orders ───────────────────────────────────────────────────
     @GetMapping("/my")
-    public ResponseEntity<List<Order>> getMyOrders(Authentication auth) {
+    public ResponseEntity<List<OrderDTO>> getMyOrders(Authentication auth) {
         String email = auth.getName();
         Student student = studentRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
-        return ResponseEntity.ok(orderService.getOrdersByStudentId(student.getId()));
+        return ResponseEntity.ok(DtoMapper.orderList(orderService.getOrdersByStudentId(student.getId())));
     }
 
     // ── Customer: cancel own order ────────────────────────────────────────────
@@ -87,7 +89,7 @@ public class OrderController {
         }
 
         String reason = body != null ? body.get("reason") : null;
-        return ResponseEntity.ok(orderService.updateStatus(id, OrderStatus.CANCELLED, reason));
+        return ResponseEntity.ok(DtoMapper.toDto(orderService.updateStatus(id, OrderStatus.CANCELLED, reason)));
     }
 
     // ── Shop owner: orders for my shop ────────────────────────────────────────
@@ -102,7 +104,7 @@ public class OrderController {
         Page<Order> orders = orderService.getOrdersByBusinessIdPaged(
                 biz.get().getId(),
                 PageRequest.of(page, size, Sort.by("orderDate").descending()));
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(DtoMapper.orderPage(orders));
     }
 
     // ── Admin: all orders (paginated) ─────────────────────────────────────────
@@ -117,7 +119,7 @@ public class OrderController {
         }
         Page<Order> orders = orderService.getAllOrdersPaged(
                 PageRequest.of(page, size, Sort.by("orderDate").descending()));
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(DtoMapper.orderPage(orders));
     }
 
     // ── Admin: get by id ──────────────────────────────────────────────────────
@@ -140,7 +142,7 @@ public class OrderController {
         if (!isAdmin && !isCustomer && !isShopOwner) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(DtoMapper.toDto(order));
     }
 
     // ── Admin + Shop owner: update order status ───────────────────────────────
@@ -168,7 +170,7 @@ public class OrderController {
         String reason = body.get("reason");
         try {
             OrderStatus newStatus = OrderStatus.valueOf(statusStr);
-            return ResponseEntity.ok(orderService.updateStatus(id, newStatus, reason));
+            return ResponseEntity.ok(DtoMapper.toDto(orderService.updateStatus(id, newStatus, reason)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid status: " + statusStr);
         }
@@ -181,11 +183,11 @@ public class OrderController {
         if (requester == null || !requester.isAdmin()) {
             // customers can only see their own
             if (requester != null && requester.getId().equals(studentId)) {
-                return ResponseEntity.ok(orderService.getOrdersByStudentId(studentId));
+                return ResponseEntity.ok(DtoMapper.orderList(orderService.getOrdersByStudentId(studentId)));
             }
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
-        return ResponseEntity.ok(orderService.getOrdersByStudentId(studentId));
+        return ResponseEntity.ok(DtoMapper.orderList(orderService.getOrdersByStudentId(studentId)));
     }
 
     // ── Admin: get by status ──────────────────────────────────────────────────
@@ -197,7 +199,7 @@ public class OrderController {
         }
         try {
             OrderStatus s = OrderStatus.valueOf(status.toUpperCase());
-            return ResponseEntity.ok(orderService.getOrdersByStatus(s));
+            return ResponseEntity.ok(DtoMapper.orderList(orderService.getOrdersByStatus(s)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid status: " + status);
         }

@@ -1,6 +1,8 @@
 package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Business;
+import org.example.duwaz.dto.response.BusinessDTO;
+import org.example.duwaz.dto.response.DtoMapper;
 import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.BusinessService;
 import org.springframework.http.HttpStatus;
@@ -9,7 +11,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @RestController
@@ -27,14 +28,14 @@ public class BusinessController {
     // ── Public endpoints ──────────────────────────────────────────────────────
 
     @GetMapping
-    public ResponseEntity<List<Business>> getAllBusinesses() {
-        return ResponseEntity.ok(businessService.getAllBusiness());
+    public ResponseEntity<List<BusinessDTO>> getAllBusinesses() {
+        return ResponseEntity.ok(DtoMapper.businessList(businessService.getAllBusiness()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Business> getBusinessById(@PathVariable Long id) {
+    public ResponseEntity<BusinessDTO> getBusinessById(@PathVariable Long id) {
         Business business = businessService.findBusinessById(id);
-        return ResponseEntity.ok(business);
+        return ResponseEntity.ok(DtoMapper.toDto(business));
     }
 
     // ── Authenticated endpoints ───────────────────────────────────────────────
@@ -44,10 +45,10 @@ public class BusinessController {
      * Returns empty list if they have none.
      */
     @GetMapping("/mine/all")
-    public ResponseEntity<List<Business>> getMyShops(Authentication auth) {
+    public ResponseEntity<List<BusinessDTO>> getMyShops(Authentication auth) {
         String email = auth.getName();
         return studentRepository.findByEmail(email)
-                .map(student -> ResponseEntity.ok(businessService.findAllByStudentId(student.getId())))
+                .map(student -> ResponseEntity.ok(DtoMapper.businessList(businessService.findAllByStudentId(student.getId()))))
                 .orElse(ResponseEntity.ok(List.of()));
     }
 
@@ -56,22 +57,22 @@ public class BusinessController {
      * Returns 404 if the student doesn't own a shop yet.
      */
     @GetMapping("/mine")
-    public ResponseEntity<Business> getMyShop(Authentication auth) {
+    public ResponseEntity<BusinessDTO> getMyShop(Authentication auth) {
         String email = auth.getName();
         return studentRepository.findByEmail(email)
                 .flatMap(student -> businessService.findByStudentId(student.getId()))
-                .map(ResponseEntity::ok)
+                .map(b -> ResponseEntity.ok(DtoMapper.toDto(b)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Business> createBusiness(@RequestBody Business business,
+    public ResponseEntity<BusinessDTO> createBusiness(@RequestBody Business business,
                                                     Authentication auth) {
         // Attach the authenticated student as owner
         String email = auth.getName();
         studentRepository.findByEmail(email).ifPresent(business::setStudent);
         Business created = businessService.saveBusiness(business);
-        return new ResponseEntity<>(created, HttpStatus.CREATED);
+        return new ResponseEntity<>(DtoMapper.toDto(created), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
@@ -88,7 +89,7 @@ public class BusinessController {
                     .body("You are not the owner of this shop");
         }
 
-        return ResponseEntity.ok(businessService.updateBusiness(id, business));
+        return ResponseEntity.ok(DtoMapper.toDto(businessService.updateBusiness(id, business)));
     }
 
     @DeleteMapping("/{id}")
