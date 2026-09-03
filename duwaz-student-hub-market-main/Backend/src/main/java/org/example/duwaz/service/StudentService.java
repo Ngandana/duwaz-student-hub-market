@@ -1,7 +1,10 @@
 package org.example.duwaz.service;
 
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.exception.BadRequestException;
+import org.example.duwaz.exception.NotFoundException;
 import org.example.duwaz.repo.StudentRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,7 +24,7 @@ public class StudentService {
 
     public Student findStudentById(Long id) {
         return studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Student not found with id " + id));
     }
 
     public List<Student> getAllStudents() {
@@ -46,6 +49,19 @@ public class StudentService {
     }
 
     public void deleteStudentById(Long id) {
-        studentRepository.deleteById(id);
+        if (!studentRepository.existsById(id)) {
+            throw new NotFoundException("Student not found with id " + id);
+        }
+        try {
+            studentRepository.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            // The account has orders, a shop, reviews, etc. referencing it — deleting
+            // outright would either crash (as it did before this check existed) or,
+            // if cascaded, silently destroy order/financial history. Neither is right
+            // for a self-service delete, so surface a clear reason instead.
+            throw new BadRequestException(
+                    "Cannot delete this account: it still has orders, a shop, or other "
+                    + "records attached. Contact support if you need it removed.");
+        }
     }
 }

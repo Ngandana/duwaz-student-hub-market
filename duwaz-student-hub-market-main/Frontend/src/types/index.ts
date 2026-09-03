@@ -65,6 +65,8 @@ export interface Order {
   business?: Business;
   items?: OrderItem[];
   totalAmount: number;
+  deliveryFee?: number;
+  pointsRedeemed?: number;
   orderDate: string;
   status: OrderStatus;
   deliveryAddress?: string;

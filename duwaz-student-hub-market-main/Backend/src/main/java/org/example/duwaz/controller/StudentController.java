@@ -1,45 +1,76 @@
 package org.example.duwaz.controller;
 
 import org.example.duwaz.classesFolder.Student;
+import org.example.duwaz.repo.StudentRepository;
 import org.example.duwaz.service.StudentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
+/**
+ * Legacy-named ("/Student" instead of "/api/students") profile CRUD, kept at its
+ * original path since the frontend already depends on it (see AuthContext + api.ts).
+ *
+ * IMPORTANT: every method here is now scoped to "the caller themselves, or an admin".
+ * Previously these had no ownership check at all — any authenticated user could read,
+ * edit, or delete *any other* student's account by id. Account creation is handled by
+ * POST /api/auth/register (which hashes the password); this class no longer exposes a
+ * duplicate, unhashed-password /create endpoint.
+ */
 @RestController
 @RequestMapping("/Student")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://localhost:8081", "http://localhost:3000"})
 public class StudentController {
 
     @Autowired
     private StudentService service;
 
-    @PostMapping("/create")
-    public ResponseEntity<Student> create(@RequestBody Student student) {
-        Student savedStudent = service.saveStudent(student);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedStudent);
+    @Autowired
+    private StudentRepository studentRepository;
+
+    private Student requireSelfOrAdmin(Authentication auth, long targetId) {
+        if (auth == null) return null;
+        Student requester = studentRepository.findByEmail(auth.getName()).orElse(null);
+        if (requester == null) return null;
+        if (requester.isAdmin() || requester.getId().equals(targetId)) {
+            return requester;
+        }
+        return null;
     }
 
     @GetMapping("/read/{studentId}")
-    public Student read(@PathVariable long studentId) {
-        return service.findStudentById(studentId);
+    public ResponseEntity<?> read(@PathVariable long studentId, Authentication auth) {
+        if (requireSelfOrAdmin(auth, studentId) == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+        return ResponseEntity.ok(service.findStudentById(studentId));
     }
 
     @PutMapping("/update")
-    public Student update(@RequestBody Student student) {
-        return service.updateStudent(student);
+    public ResponseEntity<?> update(@RequestBody Student student, Authentication auth) {
+        if (student.getId() == null || requireSelfOrAdmin(auth, student.getId()) == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+        return ResponseEntity.ok(service.updateStudent(student));
     }
 
     @DeleteMapping("/delete/{id}")
-    public void delete(@PathVariable long id) {
+    public ResponseEntity<?> delete(@PathVariable long id, Authentication auth) {
+        if (requireSelfOrAdmin(auth, id) == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
         service.deleteStudentById(id);
+        return ResponseEntity.noContent().build();
     }
 
+    /** Admin-only — regular users get the same data (minus PII of others) via /api/businesses etc. */
     @GetMapping("/getall")
-    public List<Student> getallStudent() {
-        return service.getAllStudents();
+    public ResponseEntity<?> getallStudent(Authentication auth) {
+        Student requester = auth != null ? studentRepository.findByEmail(auth.getName()).orElse(null) : null;
+        if (requester == null || !requester.isAdmin()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin access required");
+        }
+        return ResponseEntity.ok(service.getAllStudents());
     }
 }

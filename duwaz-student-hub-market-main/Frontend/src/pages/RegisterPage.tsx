@@ -35,8 +35,8 @@ const RegisterPage = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    if (formData.password.length < 8) {
+      toast({ title: 'Password must be at least 8 characters', variant: 'destructive' });
       return;
     }
 
@@ -122,7 +122,7 @@ const RegisterPage = () => {
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Min. 6 characters"
+                placeholder="Min. 8 characters"
                 value={formData.password}
                 onChange={handleChange}
                 required

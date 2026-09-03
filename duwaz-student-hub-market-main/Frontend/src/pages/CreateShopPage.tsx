@@ -12,21 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShopContext } from '@/context/ShopContext';
 
-// Predefined shop categories
-const SHOP_CATEGORIES = [
-  'Food & Drinks',
-  'Snacks & Confectionery',
-  'Fresh Produce',
-  'Clothing & Apparel',
-  'Electronics & Accessories',
-  'Books & Stationery',
-  'Health & Beauty',
-  'Home & Living',
-  'Sports & Fitness',
-  'Art & Crafts',
-  'Services',
-  'Other',
-];
+import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 
 // Days for operating hours builder
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

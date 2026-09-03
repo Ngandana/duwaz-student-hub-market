@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Trash, MapPin, Info, Bike, Home, Pencil, Loader2, Store } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Trash, MapPin, Info, Bike, Home, Pencil, Loader2, Store, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { transactionsApi } from '@/services/api';
+
+// 100 pts = R10 — must match TransactionService.POINTS_PER_REDEMPTION_BLOCK / REDEMPTION_BLOCK_VALUE
+const POINTS_PER_BLOCK = 100;
+const BLOCK_VALUE = 10;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 // Fee = distance component + time component (50/50 split)
@@ -156,10 +162,31 @@ const CartPage = () => {
   const [geocodeError, setGeocodeError]   = useState('');
 
   const effectiveAddress = useMyResidence ? (user?.locationAddress ?? '') : customAddress;
-  const total = subtotal + deliveryFee;
 
   // Get unique shopIds from cart
   const uniqueShopIds = [...new Set(items.map(i => i.shopId).filter(Boolean))] as number[];
+
+  // ── Loyalty points redemption ──────────────────────────────────────────────
+  // Only offered for single-shop carts — splitting a points discount proportionally
+  // across multiple per-shop orders (like the delivery fee already is) while keeping
+  // each redemption a clean multiple of 100 gets complicated fast, so it's scoped out.
+  const { data: pointsSummary } = useQuery({
+    queryKey: ['transactions', 'summary'],
+    queryFn: () => transactionsApi.getMySummary(),
+    enabled: isAuthenticated,
+    staleTime: 30000,
+  });
+  const availablePoints = Number((pointsSummary as any)?.availablePoints ?? 0);
+  const canRedeemPoints = isAuthenticated && uniqueShopIds.length === 1 && availablePoints >= POINTS_PER_BLOCK;
+  const maxRedeemableBlocks = Math.min(
+    Math.floor(availablePoints / POINTS_PER_BLOCK),
+    Math.floor(subtotal / BLOCK_VALUE)
+  );
+  const [redeemBlocks, setRedeemBlocks] = useState(0);
+  const pointsToRedeem = canRedeemPoints ? Math.min(redeemBlocks, maxRedeemableBlocks) * POINTS_PER_BLOCK : 0;
+  const pointsDiscount = (pointsToRedeem / POINTS_PER_BLOCK) * BLOCK_VALUE;
+
+  const total = subtotal - pointsDiscount + deliveryFee;
 
   // ── Fetch shop(s) to get their owner's address ────────────────────────────
   // We use the first shop as the origin (single-shop cart is the common case).
@@ -280,6 +307,10 @@ const CartPage = () => {
         const payload = {
           totalAmount: shopSubtotal + shopDeliveryFee,
           deliveryFee: shopDeliveryFee,
+          // Only meaningful for single-shop carts (see canRedeemPoints) — for a
+          // multi-shop checkout there's exactly one shopId here anyway so this is
+          // either 0 or the whole redemption, never split incorrectly.
+          pointsRedeemed: shopIds.length === 1 ? pointsToRedeem : 0,
           status: 'PENDING',
           deliveryAddress: effectiveAddress.trim(),
           business: { id: Number(shopId) },
@@ -459,11 +490,57 @@ const CartPage = () => {
                   </span>
                   <span>R{deliveryFee.toFixed(2)}</span>
                 </div>
+                {pointsDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-green-600" />
+                      Points redeemed ({pointsToRedeem} pts)
+                    </span>
+                    <span>−R{pointsDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="pt-2 border-t flex justify-between font-bold text-lg">
                   <span>Total</span>
                   <span>R{total.toFixed(2)}</span>
                 </div>
               </div>
+
+              {/* Loyalty points redemption */}
+              {canRedeemPoints && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                      <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                      Use your points
+                    </p>
+                    <p className="text-xs text-gray-500">{availablePoints} pts available</p>
+                  </div>
+                  {maxRedeemableBlocks > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button" variant="outline" size="sm" className="h-7 w-7 p-0"
+                        onClick={() => setRedeemBlocks(b => Math.max(0, b - 1))}
+                        disabled={redeemBlocks <= 0}
+                      >-</Button>
+                      <span className="text-sm font-medium w-32 text-center">
+                        {pointsToRedeem} pts (−R{pointsDiscount.toFixed(2)})
+                      </span>
+                      <Button
+                        type="button" variant="outline" size="sm" className="h-7 w-7 p-0"
+                        onClick={() => setRedeemBlocks(b => Math.min(maxRedeemableBlocks, b + 1))}
+                        disabled={redeemBlocks >= maxRedeemableBlocks}
+                      >+</Button>
+                      <Button
+                        type="button" variant="link" size="sm" className="h-7 text-xs ml-auto"
+                        onClick={() => setRedeemBlocks(maxRedeemableBlocks)}
+                        disabled={redeemBlocks >= maxRedeemableBlocks}
+                      >Use max</Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Your order subtotal is too small to redeem points on (100 pts = R10).</p>
+                  )}
+                </div>
+              )}
 
               <Button
                 className="w-full bg-duwaz-brown hover:bg-duwaz-brown/90"

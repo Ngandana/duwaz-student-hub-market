@@ -21,6 +21,30 @@ function getToken(): string | null {
   return localStorage.getItem('duwaz_token');
 }
 
+/**
+ * Error bodies come in two shapes from this API: a plain string (most manual
+ * `ResponseEntity.badRequest().body("...")` calls) or a JSON object from
+ * GlobalExceptionHandler — either `{ message: "..." }` (404/500) or
+ * `{ fields: { fieldName: "reason" } }` (400 validation failures). Without this,
+ * the JSON shapes render as a raw `{"timestamp":...}` blob in a toast.
+ */
+function extractErrorMessage(raw: string): string {
+  if (!raw) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.fields && typeof parsed.fields === 'object') {
+        const messages = Object.values(parsed.fields).filter(Boolean);
+        if (messages.length > 0) return messages.join(' · ');
+      }
+      if (typeof parsed.message === 'string' && parsed.message) return parsed.message;
+    }
+  } catch {
+    // Not JSON — it's a plain-text error body, use as-is.
+  }
+  return raw;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
 
@@ -47,8 +71,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed: ${response.status}`);
+    const raw = await response.text();
+    throw new Error(extractErrorMessage(raw) || `Request failed: ${response.status}`);
   }
 
   if (response.status === 204) {

@@ -23,6 +23,7 @@ import { useBusinessProducts, useCreateProduct, useUpdateProduct, useDeleteProdu
 import { useCategories } from '@/hooks/useCategories';
 import { shopApi, ordersApi, messagesApi, transactionsApi } from '@/services/api';
 import { getStatusBadge, NEXT_STATUSES, ORDER_STATUS_LABELS } from '@/lib/orderUtils';
+import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 import { useShopContext } from '@/context/ShopContext';
 import type { Product, OrderStatus, ProductStatus, StoreMessage } from '@/types';
 
@@ -170,7 +171,10 @@ const ShopDashboardPage = () => {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState<string>('ALL');
   const [editShopOpen, setEditShopOpen] = useState(false);
-  const [shopForm, setShopForm] = useState({ businessName: '', description: '', logoBase64: null as string | null });
+  const [shopForm, setShopForm] = useState({
+    businessName: '', description: '', logoBase64: null as string | null,
+    shopCategory: '', phoneNumber: '', operatingHours: '',
+  });
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -192,7 +196,10 @@ const ShopDashboardPage = () => {
   // ── Handlers ──────────────────────────────────────────────────────────────────
   const openEditShop = () => {
     if (!shop) return;
-    setShopForm({ businessName: shop.businessName, description: shop.description ?? '', logoBase64: null });
+    setShopForm({
+      businessName: shop.businessName, description: shop.description ?? '', logoBase64: null,
+      shopCategory: shop.shopCategory ?? '', phoneNumber: shop.phoneNumber ?? '', operatingHours: shop.operatingHours ?? '',
+    });
     setLogoPreview(shop.logoUrl ?? null);
     setEditShopOpen(true);
   };
@@ -206,7 +213,17 @@ const ShopDashboardPage = () => {
   };
   const handleSaveShop = () => {
     if (!shop) return;
-    updateShop({ id: shop.id, data: { businessName: shopForm.businessName, description: shopForm.description, ...(shopForm.logoBase64 ? { logoUrl: shopForm.logoBase64 } : {}) } }, {
+    updateShop({
+      id: shop.id,
+      data: {
+        businessName: shopForm.businessName,
+        description: shopForm.description,
+        shopCategory: shopForm.shopCategory,
+        phoneNumber: shopForm.phoneNumber,
+        operatingHours: shopForm.operatingHours,
+        ...(shopForm.logoBase64 ? { logoUrl: shopForm.logoBase64 } : {}),
+      },
+    }, {
       onSuccess: () => { toast({ title: 'Shop updated!' }); setEditShopOpen(false); },
       onError: (err) => toast({ title: 'Failed', description: err.message, variant: 'destructive' }),
     });
@@ -605,6 +622,20 @@ const ShopDashboardPage = () => {
                   <p className="text-sm text-gray-400 mt-1">Owner: {shop.student?.studentName ?? '—'}</p>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3 text-sm border-t pt-3">
+                <div>
+                  <p className="text-gray-400 text-xs">Category</p>
+                  <p className="font-medium">{shop.shopCategory || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs">Phone Number</p>
+                  <p className="font-medium">{shop.phoneNumber || 'Not set'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-gray-400 text-xs">Operating Hours</p>
+                  <p className="font-medium whitespace-pre-line">{shop.operatingHours || 'Not set'}</p>
+                </div>
+              </div>
               <Button className="bg-duwaz-brown hover:bg-duwaz-brown/90" onClick={openEditShop}><Pencil className="h-4 w-4 mr-2" />Edit Store Profile</Button>
             </CardContent>
           </Card>
@@ -629,6 +660,24 @@ const ShopDashboardPage = () => {
             </div>
             <div className="space-y-2"><Label>Shop Name</Label><Input value={shopForm.businessName} onChange={e => setShopForm(p => ({ ...p, businessName: e.target.value }))} /></div>
             <div className="space-y-2"><Label>Description</Label><Textarea value={shopForm.description} onChange={e => setShopForm(p => ({ ...p, description: e.target.value }))} className="min-h-[80px]" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Shop Category</Label>
+                <select className="w-full border rounded-md py-2 px-3 text-sm" value={shopForm.shopCategory} onChange={e => setShopForm(p => ({ ...p, shopCategory: e.target.value }))}>
+                  <option value="">None</option>
+                  {SHOP_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Owner Phone Number</Label>
+                <Input type="tel" value={shopForm.phoneNumber} onChange={e => setShopForm(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="e.g. 071 234 5678" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Operating Hours</Label>
+              <Textarea value={shopForm.operatingHours} onChange={e => setShopForm(p => ({ ...p, operatingHours: e.target.value }))} className="min-h-[100px] font-mono text-xs" placeholder={'Monday: 08:00 – 17:00\nTuesday: 08:00 – 17:00\n...'} />
+              <p className="text-xs text-gray-400">Shown to customers on your public shop page.</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditShopOpen(false)}>Cancel</Button>
@@ -655,10 +704,10 @@ const ShopDashboardPage = () => {
               <div className="space-y-1">
                 <Label>Price (R) <span className="text-red-500">*</span></Label>
                 <Input type="number" min="0" step="0.01" value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} />
-                {/* Live fee preview */}
+                {/* Live earnings preview — mirrors TransactionService's actual 85/5/10 split */}
                 {productForm.price && Number(productForm.price) > 0 && (
                   <div className="rounded-md bg-amber-50 border border-amber-200 p-2 space-y-1 text-xs">
-                    <p className="font-semibold text-amber-700">💡 Price breakdown for buyers:</p>
+                    <p className="font-semibold text-amber-700">💡 What you'll actually receive per sale:</p>
                     <div className="flex justify-between text-gray-600">
                       <span>Your product price</span>
                       <span>R{Number(productForm.price).toFixed(2)}</span>
@@ -668,14 +717,14 @@ const ShopDashboardPage = () => {
                       <span className="text-red-500">−R{(Number(productForm.price) * 0.05).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
-                      <span>Delivery fee (10% to rider)</span>
-                      <span className="text-amber-600">+R{(Number(productForm.price) * 0.10).toFixed(2)}</span>
+                      <span>Driver commission (10%)</span>
+                      <span className="text-red-500">−R{(Number(productForm.price) * 0.10).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-semibold text-duwaz-brown border-t pt-1">
-                      <span>You receive (after Duwaz 5%)</span>
-                      <span>R{(Number(productForm.price) * 0.95).toFixed(2)}</span>
+                      <span>You receive (85%)</span>
+                      <span>R{(Number(productForm.price) * 0.85).toFixed(2)}</span>
                     </div>
-                    <p className="text-gray-400 text-xs">The delivery fee is charged separately to the customer on top of your price.</p>
+                    <p className="text-gray-400 text-xs">Separately, the buyer also pays a distance-based delivery fee (R10–R20) — that fee doesn't come out of your price.</p>
                   </div>
                 )}
               </div>

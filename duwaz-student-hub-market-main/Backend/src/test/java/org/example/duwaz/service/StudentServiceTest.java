@@ -109,6 +109,7 @@ class StudentServiceTest {
     void testDeleteStudentById() {
         // Arrange
         Long studentId = 1L;
+        when(studentRepository.existsById(studentId)).thenReturn(true);
         doNothing().when(studentRepository).deleteById(studentId);
 
         // Act
@@ -116,6 +117,17 @@ class StudentServiceTest {
 
         // Verify
         verify(studentRepository, times(1)).deleteById(studentId);
+    }
+
+    @Test
+    void testDeleteStudentById_NotFound() {
+        // Arrange
+        Long studentId = 999L;
+        when(studentRepository.existsById(studentId)).thenReturn(false);
+
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> studentService.deleteStudentById(studentId));
+        verify(studentRepository, never()).deleteById(any());
     }
 
     private Student createStudent(Long id, String name) {

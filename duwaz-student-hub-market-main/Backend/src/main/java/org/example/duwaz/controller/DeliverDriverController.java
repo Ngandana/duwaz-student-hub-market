@@ -11,7 +11,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/delivery-drivers")
-@CrossOrigin(origins = "*")
 public class DeliverDriverController {
 
     private final DeliverDriverService deliverDriverService;

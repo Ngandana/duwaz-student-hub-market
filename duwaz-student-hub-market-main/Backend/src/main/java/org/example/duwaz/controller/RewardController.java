@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/rewards")
-@CrossOrigin(origins = "*")
 public class RewardController {
 
     private final RewardsService rewardsService;

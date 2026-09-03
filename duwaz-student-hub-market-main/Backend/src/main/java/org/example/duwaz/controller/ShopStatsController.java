@@ -17,7 +17,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/shops")
-@CrossOrigin(origins = "*")
 public class ShopStatsController {
 
     private final BusinessRepository businessRepository;

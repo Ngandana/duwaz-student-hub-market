@@ -36,4 +36,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.status = 'DELIVERED'")
     java.math.BigDecimal sumRevenue();
+
+    @Query("SELECT COALESCE(SUM(o.pointsRedeemed), 0) FROM Order o WHERE o.student.id = :studentId")
+    int sumPointsRedeemedByStudentId(@Param("studentId") Long studentId);
 }

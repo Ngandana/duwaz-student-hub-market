@@ -3,45 +3,49 @@ package org.example.duwaz.service;
 import org.example.duwaz.classesFolder.Business;
 import org.example.duwaz.classesFolder.Student;
 import org.example.duwaz.repo.BusinessRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-
-import static org.mockito.AdditionalAnswers.returnsFirstArg;
-
-@SpringBootTest
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+/**
+ * Pure unit test — the repository is mocked, so this never touches a real database.
+ *
+ * (Previously this class was a @SpringBootTest that wired the real BusinessService/
+ * StudentService beans against the live Supabase datasource configured in
+ * application.properties, with no @Transactional rollback and no test-only DB. That
+ * meant every `mvn test` run attempted real INSERT/UPDATE/DELETE statements against
+ * production data — and failed outright because the test's Student had no email,
+ * which violates the not-null constraint. Rewritten to match the StudentServiceTest
+ * pattern instead: mock the repository, test the service in isolation.)
+ */
+@ExtendWith(MockitoExtension.class)
 class BusinessServiceTest {
 
     @Mock
     private BusinessRepository businessRepository;
 
-    @Autowired
+    @InjectMocks
     private BusinessService businessService;
 
-    @Autowired
-    private StudentService studentService;
+    private Business business;
 
-    static private Business business;
-    static Business saved;
-
-    @BeforeAll
-    static void setUp() {
-         Student student = new Student();
-        student.setStudentNumber("221145687");
+    @BeforeEach
+    void setUp() {
+        Student student = new Student();
+        student.setId(1L);
         student.setStudentName("John");
+        student.setStudentNumber("221145687");
+        student.setEmail("john@example.com");
 
         business = new Business();
         business.setId(2L);
@@ -49,54 +53,63 @@ class BusinessServiceTest {
         business.setStudent(student);
     }
 
-    @Test()
-    @Order(1)
+    @Test
     void testSaveBusiness() {
+        when(businessRepository.save(any(Business.class))).thenReturn(business);
 
+        Business saved = businessService.saveBusiness(business);
 
-        studentService.saveStudent(business.getStudent());
-         saved = businessService.saveBusiness(business);
-        System.out.println("saved: "+ saved);
         assertNotNull(saved);
+        assertEquals("DOAS", saved.getBusinessName());
+        verify(businessRepository, times(1)).save(business);
     }
 
     @Test
-    @Order(2)
     void testFindBusinessById() {
-        Business found = businessService.findBusinessById(saved.getId());
+        when(businessRepository.findById(2L)).thenReturn(Optional.of(business));
+
+        Business found = businessService.findBusinessById(2L);
+
         assertNotNull(found);
-        System.out.println(found);
+        assertEquals(business.getId(), found.getId());
     }
 
+    @Test
+    void testFindBusinessById_NotFound() {
+        when(businessRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> businessService.findBusinessById(999L));
+    }
 
     @Test
-    @Order(3)
     void testUpdateBusiness() {
-        saved.setName("UpdatedName");
+        when(businessRepository.findById(2L)).thenReturn(Optional.of(business));
+        when(businessRepository.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Business updated = businessService.updateBusiness(saved.getId(), saved);
+        Business patch = new Business();
+        patch.setName("UpdatedName");
+
+        Business updated = businessService.updateBusiness(2L, patch);
 
         assertEquals("UpdatedName", updated.getBusinessName());
-
-        System.out.println(updated);
     }
 
-
     @Test
-    @Order(4)
     void testGetAllBusiness() {
-        System.out.println(businessService.getAllBusiness());
+        when(businessRepository.findAll()).thenReturn(List.of(business));
+
+        List<Business> all = businessService.getAllBusiness();
+
+        assertEquals(1, all.size());
     }
 
     @Test
-    @Order(5)
     void testDeleteBusinessById() {
+        when(businessRepository.existsById(2L)).thenReturn(false);
 
-        boolean isDeleted = businessService.deleteBusinessById(saved.getId());
-        assertEquals(true, isDeleted);
+        boolean deleted = businessService.deleteBusinessById(2L);
 
+        assertTrue(deleted);
+        verify(businessRepository, times(1)).deleteById(2L);
     }
-
 }
-
-

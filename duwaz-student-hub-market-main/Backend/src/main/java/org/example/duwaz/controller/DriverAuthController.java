@@ -5,7 +5,10 @@ import org.example.duwaz.dto.AuthRequest;
 import org.example.duwaz.dto.DriverAuthResponse;
 import org.example.duwaz.dto.DriverRegisterRequest;
 import org.example.duwaz.repo.DeliverDriverRepository;
+import org.example.duwaz.security.LoginRateLimiter;
 import org.example.duwaz.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,23 +22,25 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth/driver")
-@CrossOrigin(origins = "*")
 public class DriverAuthController {
 
     private final DeliverDriverRepository driverRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+    private final LoginRateLimiter loginRateLimiter;
 
     public DriverAuthController(DeliverDriverRepository driverRepository,
                                  JwtUtil jwtUtil,
-                                 PasswordEncoder passwordEncoder) {
+                                 PasswordEncoder passwordEncoder,
+                                 LoginRateLimiter loginRateLimiter) {
         this.driverRepository = driverRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody DriverRegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody DriverRegisterRequest request) {
         if (driverRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Email already registered");
         }
@@ -70,7 +75,13 @@ public class DriverAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
+        String rateKey = httpRequest.getRemoteAddr() + ":" + request.getEmail().toLowerCase();
+        if (!loginRateLimiter.allow(rateKey)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many login attempts. Please try again in a few minutes.");
+        }
+
         Optional<DeliverDriver> driverOpt = driverRepository.findByEmail(request.getEmail());
 
         if (driverOpt.isEmpty()) {
@@ -86,6 +97,8 @@ public class DriverAuthController {
         if (driver.getPassword() == null || !passwordEncoder.matches(request.getPassword(), driver.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
         }
+
+        loginRateLimiter.reset(rateKey);
 
         String token = jwtUtil.generateToken(driver.getEmail(), driver.getDeliveryDriverId(), "DRIVER");
 

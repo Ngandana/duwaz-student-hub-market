@@ -31,3 +31,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets ###
+# Real values live only on disk / in env vars. See application.properties.example
+# for the keys you need to fill in.
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+!src/main/resources/application.properties.example
+
+### JVM crash dumps ###
+hs_err_pid*.log
+replay_pid*.log
+*.hprof

@@ -127,6 +127,13 @@ const ProductDetailPage = () => {
 
           <p className="text-3xl font-bold mb-4">R{Number(product.price).toFixed(2)}</p>
 
+          {/* Stock indicator */}
+          {(product.stockQuantity ?? 0) <= 0 ? (
+            <p className="text-sm font-medium text-red-600 mb-4">Out of stock</p>
+          ) : (product.stockQuantity ?? 0) <= 5 ? (
+            <p className="text-sm font-medium text-amber-600 mb-4">Only {product.stockQuantity} left in stock</p>
+          ) : null}
+
           <div className="mb-6">
             <h3 className="text-lg font-medium mb-2">Description</h3>
             <p className="text-gray-700">{product.description ?? 'No description available.'}</p>
@@ -151,6 +158,7 @@ const ProductDetailPage = () => {
                   variant="ghost"
                   size="icon"
                   onClick={() => handleQuantityChange(1)}
+                  disabled={quantity >= (product.stockQuantity ?? Infinity)}
                   className="h-10 w-10 rounded-none"
                 >
                   +
@@ -162,9 +170,10 @@ const ProductDetailPage = () => {
               size="lg"
               className="w-full bg-duwaz-brown hover:bg-duwaz-brown/90"
               onClick={handleAddToCart}
+              disabled={(product.stockQuantity ?? 0) <= 0}
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
-              Add to Cart
+              {(product.stockQuantity ?? 0) <= 0 ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
         </div>

@@ -3,6 +3,7 @@ package org.example.duwaz.service;
 import org.example.duwaz.classesFolder.*;
 import org.example.duwaz.classesFolder.Transaction.TransactionStatus;
 import org.example.duwaz.repo.DriverEarningRepository;
+import org.example.duwaz.repo.OrderRepository;
 import org.example.duwaz.repo.RevenueSplitRepository;
 import org.example.duwaz.repo.StudentRewardRepository;
 import org.example.duwaz.repo.TransactionRepository;
@@ -22,19 +23,38 @@ public class TransactionService {
     private static final BigDecimal DUWAZ_RATE  = BigDecimal.valueOf(0.05); // 5%  to Duwaz
     private static final BigDecimal DRIVER_RATE = BigDecimal.valueOf(0.10); // 10% to driver
 
+    // ── Loyalty points redemption ────────────────────────────────────────────
+    public static final int POINTS_PER_REDEMPTION_BLOCK = 100;
+    public static final BigDecimal REDEMPTION_BLOCK_VALUE = BigDecimal.valueOf(10); // 100 pts = R10
+
     private final TransactionRepository transactionRepository;
     private final StudentRewardRepository rewardRepository;
     private final DriverEarningRepository earningRepository;
     private final RevenueSplitRepository splitRepository;
+    private final OrderRepository orderRepository;
 
     public TransactionService(TransactionRepository transactionRepository,
                                StudentRewardRepository rewardRepository,
                                DriverEarningRepository earningRepository,
-                               RevenueSplitRepository splitRepository) {
+                               RevenueSplitRepository splitRepository,
+                               OrderRepository orderRepository) {
         this.transactionRepository = transactionRepository;
         this.rewardRepository      = rewardRepository;
         this.earningRepository     = earningRepository;
         this.splitRepository       = splitRepository;
+        this.orderRepository       = orderRepository;
+    }
+
+    /**
+     * Points a student can still redeem: total earned (5% of product subtotal on
+     * every delivered order) minus total already spent on past orders. Spent points
+     * are never given back, even if the order that spent them is later cancelled —
+     * same as earned points aren't clawed back on cancellation either.
+     */
+    public int getAvailablePoints(Long studentId) {
+        int earned = rewardRepository.sumPointsByStudentId(studentId);
+        int redeemed = orderRepository.sumPointsRedeemedByStudentId(studentId);
+        return Math.max(0, earned - redeemed);
     }
 
     // ── Main entry point called on DELIVERED ─────────────────────────────────

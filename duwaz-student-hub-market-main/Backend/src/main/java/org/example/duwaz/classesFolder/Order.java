@@ -54,6 +54,19 @@ public class Order {
     @Column(name = "delivery_fee", precision = 10, scale = 2)
     private BigDecimal deliveryFee = BigDecimal.ZERO;
 
+    /**
+     * Loyalty points spent on this order (100 pts = R10, see OrderService). Persisted
+     * so a student's spent-points total can be computed (available = earned - spent)
+     * without a separate ledger table. Zero for orders that didn't redeem anything.
+     */
+    // columnDefinition with a DB-level default is required, not just the Java field
+    // default: this table already has real rows, and Postgres refuses to add a NOT
+    // NULL column with no default when existing rows would have nothing to fill it
+    // with (confirmed live — the plain nullable=false version failed with "column
+    // points_redeemed of relation orders contains null values").
+    @Column(name = "points_redeemed", nullable = false, columnDefinition = "integer default 0")
+    private int pointsRedeemed = 0;
+
     /** Product subtotal = totalAmount - deliveryFee. Used for revenue split. */
     public BigDecimal getProductSubtotal() {
         if (deliveryFee == null) return totalAmount;
@@ -98,4 +111,7 @@ public class Order {
 
     public BigDecimal getDeliveryFee() { return deliveryFee != null ? deliveryFee : BigDecimal.ZERO; }
     public void setDeliveryFee(BigDecimal deliveryFee) { this.deliveryFee = deliveryFee; }
+
+    public int getPointsRedeemed() { return pointsRedeemed; }
+    public void setPointsRedeemed(int pointsRedeemed) { this.pointsRedeemed = pointsRedeemed; }
 }

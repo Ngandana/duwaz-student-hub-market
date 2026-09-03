@@ -41,8 +41,14 @@ const AccountPage = () => {
   const transactions = (summary as any)?.transactions ?? [];
   const rewardHistory = (summary as any)?.rewardHistory ?? [];
   const totalSpend    = Number((summary as any)?.totalSpend ?? 0);
-  const totalPoints   = Number((summary as any)?.totalPoints ?? 0);
-  const pointsValue   = Number((summary as any)?.pointsValue ?? 0);
+  // totalPoints = lifetime earned (never shrinks); totalPoints (used below as the
+  // headline "Loyalty Points" figure) is the SPENDABLE balance — what's actually
+  // left to redeem at checkout after past redemptions. Showing lifetime-earned as
+  // the headline number would look wrong once a customer has redeemed some (e.g.
+  // "250 pts" next to "worth R5" if 200 were already spent).
+  const lifetimePoints = Number((summary as any)?.totalPoints ?? 0);
+  const totalPoints    = Number((summary as any)?.availablePoints ?? lifetimePoints);
+  const pointsValue    = Number((summary as any)?.pointsValue ?? 0);
 
   const [editForm, setEditForm] = useState({
     studentName: '',

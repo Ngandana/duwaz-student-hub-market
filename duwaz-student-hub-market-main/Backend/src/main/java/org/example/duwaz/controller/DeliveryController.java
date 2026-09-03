@@ -20,7 +20,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/deliveries")
-@CrossOrigin(origins = "*")
 public class DeliveryController {
 
     private final DeliveryAssignmentService assignmentService;

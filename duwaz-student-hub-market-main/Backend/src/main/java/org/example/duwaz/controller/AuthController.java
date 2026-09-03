@@ -5,7 +5,10 @@ import org.example.duwaz.dto.AuthRequest;
 import org.example.duwaz.dto.AuthResponse;
 import org.example.duwaz.dto.RegisterRequest;
 import org.example.duwaz.repo.StudentRepository;
+import org.example.duwaz.security.LoginRateLimiter;
 import org.example.duwaz.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +20,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://localhost:8081", "http://localhost:3000"})
 public class AuthController {
 
     @Autowired
@@ -32,13 +34,16 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private LoginRateLimiter loginRateLimiter;
+
     /** Safely get role name — falls back to CUSTOMER if role is NULL in DB */
     private String roleName(Student student) {
         return student.getRole() != null ? student.getRole().name() : "CUSTOMER";
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         if (studentRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Email already registered");
         }
@@ -64,7 +69,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
+        String rateKey = httpRequest.getRemoteAddr() + ":" + request.getEmail().toLowerCase();
+        if (!loginRateLimiter.allow(rateKey)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many login attempts. Please try again in a few minutes.");
+        }
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
@@ -72,6 +83,8 @@ public class AuthController {
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
         }
+
+        loginRateLimiter.reset(rateKey);
 
         Student student = studentRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Student not found"));

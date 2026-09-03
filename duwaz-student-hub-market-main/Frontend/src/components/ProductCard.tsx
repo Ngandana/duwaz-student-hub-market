@@ -11,6 +11,7 @@ interface ProductCardProps {
   image?: string | null;
   shopName?: string;
   shopId?: string | number;
+  stockQuantity?: number;
   onAddToCart?: () => void;
   className?: string;
 }
@@ -22,15 +23,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
   image,
   shopName,
   shopId,
+  stockQuantity,
   onAddToCart,
   className,
 }) => {
   const navigate = useNavigate();
+  const isOutOfStock = stockQuantity != null && stockQuantity <= 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAddToCart) onAddToCart();
+    if (onAddToCart && !isOutOfStock) onAddToCart();
   };
 
   const handleShopClick = (e: React.MouseEvent) => {
@@ -51,8 +54,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <ImageWithFallback
           src={image}
           alt={name}
-          className="w-full h-full transition-transform duration-300 hover:scale-105"
+          className={cn('w-full h-full transition-transform duration-300 hover:scale-105', isOutOfStock && 'opacity-50 grayscale')}
         />
+        {isOutOfStock && (
+          <span className="absolute top-2 left-2 bg-gray-900/80 text-white text-xs font-medium px-2 py-1 rounded-full">
+            Out of Stock
+          </span>
+        )}
       </div>
       <div className="p-4">
         <h3 className="font-medium text-lg line-clamp-1">{name}</h3>
@@ -74,8 +82,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             variant="outline"
             className="rounded-full"
             onClick={handleAddToCart}
+            disabled={isOutOfStock}
           >
-            <ShoppingBag className="h-4 w-4 mr-1" /> Add
+            <ShoppingBag className="h-4 w-4 mr-1" /> {isOutOfStock ? 'Sold Out' : 'Add'}
           </Button>
         </div>
       </div>

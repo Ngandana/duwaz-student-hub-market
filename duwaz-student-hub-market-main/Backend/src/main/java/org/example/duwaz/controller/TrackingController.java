@@ -21,7 +21,6 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/tracking")
-@CrossOrigin(origins = "*")
 public class TrackingController {
 
     private final TrackingService trackingService;

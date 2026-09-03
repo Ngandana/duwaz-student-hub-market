@@ -27,11 +27,16 @@ public class DriverEarning {
     @JsonIgnoreProperties({"items", "student", "business", "hibernateLazyInitializer", "handler"})
     private Order order;
 
-    /** 10% of the order total */
+    /** 10% of the order's product subtotal (excludes delivery fee) */
     @Column(name = "amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
-    /** The full order total this was calculated from */
+    /**
+     * The product subtotal this was calculated from — NOT the full order total
+     * (delivery fee is excluded from the commission base). Column name is kept as
+     * "order_total" since it's already the live DB schema; only the meaning is
+     * narrower than the name suggests.
+     */
     @Column(name = "order_total", nullable = false, precision = 10, scale = 2)
     private BigDecimal orderTotal;
 
@@ -50,7 +55,7 @@ public class DriverEarning {
         this.orderTotal = orderTotal;
         this.earnedAt = LocalDateTime.now();
         this.description = "10% commission for Order #" + order.getId()
-                + " (R" + orderTotal + " order)";
+                + " (R" + orderTotal + " product subtotal)";
     }
 
     public Long getId() { return id; }

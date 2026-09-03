@@ -1,13 +1,34 @@
 package org.example.duwaz.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 public class DriverRegisterRequest {
+
+    @NotBlank(message = "First name is required")
     private String firstName;
+
+    @NotBlank(message = "Last name is required")
     private String lastName;
+
+    @NotBlank(message = "Email is required")
+    @Email(message = "Must be a valid email address")
     private String email;
+
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
+
+    @NotBlank(message = "Contact number is required")
     private String contactNumber;
+
+    @NotBlank(message = "Vehicle type is required")
     private String vehicleType;
+
+    @NotBlank(message = "License number is required")
     private String licenseNumber;
+
     private String emergencyContact;
 
     public String getFirstName() { return firstName; }

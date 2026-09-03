@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Store, Settings } from 'lucide-react';
+import { ArrowLeft, Store, Settings, Phone, Clock, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
@@ -95,10 +95,43 @@ const ShopPage = () => {
         </div>
 
         {/* About */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">About this shop</h2>
           <p className="text-gray-700">{shop.description ?? 'No description provided.'}</p>
         </div>
+
+        {/* Shop details: category, contact, hours */}
+        {(shop.shopCategory || shop.phoneNumber || shop.operatingHours) && (
+          <div className="mb-8 grid sm:grid-cols-3 gap-4">
+            {shop.shopCategory && (
+              <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-3">
+                <Tag className="h-4 w-4 text-duwaz-brown mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-400">Category</p>
+                  <p className="text-sm font-medium">{shop.shopCategory}</p>
+                </div>
+              </div>
+            )}
+            {shop.phoneNumber && (
+              <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-3">
+                <Phone className="h-4 w-4 text-duwaz-brown mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-400">Contact</p>
+                  <a href={`tel:${shop.phoneNumber}`} className="text-sm font-medium hover:underline">{shop.phoneNumber}</a>
+                </div>
+              </div>
+            )}
+            {shop.operatingHours && (
+              <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-3 sm:col-span-1">
+                <Clock className="h-4 w-4 text-duwaz-brown mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-400">Hours</p>
+                  <p className="text-sm font-medium whitespace-pre-line">{shop.operatingHours}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Products */}
         <div>
@@ -120,6 +153,7 @@ const ShopPage = () => {
                   image={product.imageUrl}
                   shopName={shop.businessName}
                   shopId={shop.id}
+                  stockQuantity={product.stockQuantity}
                   onAddToCart={() => handleAddToCart(product)}
                 />
               ))}

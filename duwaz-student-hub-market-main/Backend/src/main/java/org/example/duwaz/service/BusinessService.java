@@ -1,6 +1,7 @@
 package org.example.duwaz.service;
 
 import org.example.duwaz.classesFolder.Business;
+import org.example.duwaz.exception.NotFoundException;
 import org.example.duwaz.repo.BusinessRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,7 @@ public class BusinessService {
 
     public Business findBusinessById(Long id) {
         return businessRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Business not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Business not found with id " + id));
     }
 
     public Optional<Business> findByStudentId(Long studentId) {
@@ -41,11 +42,22 @@ public class BusinessService {
 
     public Business updateBusiness(Long id, Business updated) {
         Business existing = businessRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Business not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Business not found with id " + id));
         existing.setBusinessName(updated.getBusinessName());
         existing.setDescription(updated.getDescription());
         if (updated.getLogoUrl() != null) {
             existing.setLogoUrl(updated.getLogoUrl());
+        }
+        // These were previously write-once at shop creation — CreateShopPage requires
+        // them, but there was no way to ever change them afterward.
+        if (updated.getShopCategory() != null) {
+            existing.setShopCategory(updated.getShopCategory());
+        }
+        if (updated.getPhoneNumber() != null) {
+            existing.setPhoneNumber(updated.getPhoneNumber());
+        }
+        if (updated.getOperatingHours() != null) {
+            existing.setOperatingHours(updated.getOperatingHours());
         }
         return businessRepository.save(existing);
     }

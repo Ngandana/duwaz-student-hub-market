@@ -21,7 +21,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin(origins = "*")
 public class StoreMessageController {
 
     private final StoreMessageService messageService;

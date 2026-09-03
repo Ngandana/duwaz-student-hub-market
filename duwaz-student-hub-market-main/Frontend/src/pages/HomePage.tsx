@@ -111,6 +111,7 @@ const HomePage = () => {
                     image={product.imageUrl}
                     shopName={product.business?.businessName ?? product.category?.name}
                     shopId={product.business?.id}
+                    stockQuantity={product.stockQuantity}
                     onAddToCart={() => handleAddToCart(product)}
                   />
                 ))}

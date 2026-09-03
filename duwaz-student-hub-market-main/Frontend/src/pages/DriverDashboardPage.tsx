@@ -669,7 +669,7 @@ const DriverDashboardPage = () => {
               <Card className="border-dashed border-emerald-300 bg-emerald-50/30">
                 <CardContent className="pt-3 pb-3">
                   <p className="text-xs text-emerald-700 font-semibold">
-                    💰 You earn <strong>10% of every order total</strong> you deliver.
+                    💰 You earn <strong>10% of the product subtotal</strong> (excluding delivery fee) on every order you deliver.
                     Earnings are recorded automatically when you mark an order as delivered.
                   </p>
                 </CardContent>
@@ -699,7 +699,7 @@ const DriverDashboardPage = () => {
                               {new Date(e.earnedAt).toLocaleDateString('en-ZA', {
                                 day: 'numeric', month: 'short', year: 'numeric',
                               })}
-                              {' · '}Order total: R{Number(e.orderTotal).toFixed(2)}
+                              {' · '}Product subtotal: R{Number(e.orderTotal).toFixed(2)}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0 ml-3">

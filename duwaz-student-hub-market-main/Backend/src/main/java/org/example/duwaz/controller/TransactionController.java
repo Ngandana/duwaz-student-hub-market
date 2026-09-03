@@ -18,7 +18,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/transactions")
-@CrossOrigin(origins = "*")
 public class TransactionController {
 
     private final TransactionService transactionService;
@@ -50,8 +49,9 @@ public class TransactionController {
     /**
      * Returns a summary for the logged-in student:
      * - totalSpend (sum of COMPLETED transactions)
-     * - totalPoints (loyalty points earned)
-     * - pointsValue (R value of points — 100 pts = R10)
+     * - totalPoints (loyalty points ever earned — lifetime total, doesn't shrink when spent)
+     * - availablePoints (totalPoints minus what's already been redeemed — what can actually be spent)
+     * - pointsValue (R value of availablePoints — 100 pts = R10)
      * - rewardHistory (list of StudentReward rows)
      */
     @GetMapping("/my/summary")
@@ -60,17 +60,19 @@ public class TransactionController {
         if (studentOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Student not found");
         Long studentId = studentOpt.get().getId();
 
-        BigDecimal totalSpend  = transactionService.getTotalSpendByStudentId(studentId);
-        int        totalPoints = transactionService.getTotalPointsByStudentId(studentId);
+        BigDecimal totalSpend      = transactionService.getTotalSpendByStudentId(studentId);
+        int        totalPoints     = transactionService.getTotalPointsByStudentId(studentId);
+        int        availablePoints = transactionService.getAvailablePoints(studentId);
         // 100 pts = R10 (i.e. 1 pt = R0.10)
-        BigDecimal pointsValue = BigDecimal.valueOf(totalPoints).multiply(BigDecimal.valueOf(0.10));
+        BigDecimal pointsValue = BigDecimal.valueOf(availablePoints).multiply(BigDecimal.valueOf(0.10));
 
         Map<String, Object> summary = new HashMap<>();
-        summary.put("totalSpend",    totalSpend);
-        summary.put("totalPoints",   totalPoints);
-        summary.put("pointsValue",   pointsValue);
-        summary.put("rewardHistory", transactionService.getRewardHistoryByStudentId(studentId));
-        summary.put("transactions",  transactionService.getByStudentId(studentId));
+        summary.put("totalSpend",       totalSpend);
+        summary.put("totalPoints",      totalPoints);
+        summary.put("availablePoints",  availablePoints);
+        summary.put("pointsValue",      pointsValue);
+        summary.put("rewardHistory",    transactionService.getRewardHistoryByStudentId(studentId));
+        summary.put("transactions",     transactionService.getByStudentId(studentId));
 
         return ResponseEntity.ok(summary);
     }

@@ -3,6 +3,8 @@ package org.example.duwaz.service;
 import org.example.duwaz.classesFolder.Business;
 import org.example.duwaz.classesFolder.Product;
 import org.example.duwaz.classesFolder.Product.ProductStatus;
+import org.example.duwaz.exception.BadRequestException;
+import org.example.duwaz.exception.NotFoundException;
 import org.example.duwaz.repo.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,17 +47,19 @@ public class ProductService {
 
     public Product getProductById(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Product not found with id " + id));
     }
 
     public Product updateProduct(Long id, Product product) {
         Product existing = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Product not found with id " + id));
         existing.setName(product.getName());
         existing.setDescription(product.getDescription());
         existing.setPrice(product.getPrice());
         existing.setCategory(product.getCategory());
-        existing.setBusiness(product.getBusiness());
+        // Deliberately NOT touching `business` here — the controller only verifies the
+        // caller owns the *existing* product, so trusting a client-supplied business
+        // would let them reassign their product to a shop they don't own.
         existing.setStockQuantity(product.getStockQuantity());
         if (product.getProductStatus() != null) {
             existing.setProductStatus(product.getProductStatus());
@@ -66,23 +70,18 @@ public class ProductService {
         return productRepository.save(existing);
     }
 
-    /** Adjust stock by a delta (positive = add, negative = reduce) */
+    /**
+     * Adjust stock by a delta (positive = add/restock, negative = reduce).
+     * Used both for manual shop-owner adjustments and by OrderService to reserve
+     * stock on order creation / release it back on cancellation.
+     */
     public Product adjustStock(Long id, int delta) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Product not found with id " + id));
         int newStock = product.getStockQuantity() + delta;
-        if (newStock < 0) throw new RuntimeException("Insufficient stock");
+        if (newStock < 0) throw new BadRequestException("Insufficient stock for " + product.getName());
         product.setStockQuantity(newStock);
         return productRepository.save(product);
-    }
-
-    /** Decrease stock when an order is completed — called from OrderService */
-    public void decrementStockForOrder(Long productId, int quantity) {
-        productRepository.findById(productId).ifPresent(product -> {
-            int newStock = Math.max(0, product.getStockQuantity() - quantity);
-            product.setStockQuantity(newStock);
-            productRepository.save(product);
-        });
     }
 
     public void deleteProduct(Long id) {

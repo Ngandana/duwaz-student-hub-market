@@ -14,7 +14,6 @@ import java.util.Optional;
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @RestController
 @RequestMapping("/api/businesses")
-@CrossOrigin(origins = "*")
 public class BusinessController {
 
     private final BusinessService businessService;
